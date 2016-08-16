@@ -333,6 +333,8 @@ static inline void net_copy_roa6(net_addr_roa6 *dst, const net_addr_roa6 *src)
 static inline void net_copy_mpls(net_addr_mpls *dst, const net_addr_mpls *src)
 { memcpy(dst, src, sizeof(net_addr_mpls)); }
 
+u32 net_hash(const net_addr *n);
+
 static inline u32 net_hash_ip4(const net_addr_ip4 *n)
 { return ip4_hash(n->prefix) ^ ((u32) n->pxlen << 26); }
 
@@ -356,7 +358,7 @@ static inline u32 net_hash_roa6(const net_addr_roa6 *n)
 { return ip6_hash(n->prefix) ^ ((u32) n->pxlen << 26); }
 
 static inline u32 net_hash_mpls(const net_addr_mpls *n)
-{ return n->label; }
+{ return n->label * 0x797a8d77; }
 
 static inline int net_validate_ip4(const net_addr_ip4 *n)
 {

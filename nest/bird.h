@@ -12,6 +12,7 @@
 #include "sysdep/config.h"
 #include "lib/birdlib.h"
 #include "lib/ip.h"
+#include "lib/mpls.h"
 #include "lib/net.h"
 
 #endif

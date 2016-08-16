@@ -134,6 +134,29 @@ net_compare(const net_addr *a, const net_addr *b)
   return 0;
 }
 
+u32
+net_hash(const net_addr *n)
+{
+  switch (n->type)
+  {
+  case NET_IP4:
+    return net_hash_ip4((const net_addr_ip4 *) n);
+  case NET_IP6:
+    return net_hash_ip6((const net_addr_ip6 *) n);
+  case NET_VPN4:
+    return net_hash_vpn4((const net_addr_vpn4 *) n);
+  case NET_VPN6:
+    return net_hash_vpn6((const net_addr_vpn6 *) n);
+  case NET_ROA4:
+    return net_hash_roa4((const net_addr_roa4 *) n);
+  case NET_ROA6:
+    return net_hash_roa6((const net_addr_roa6 *) n);
+  case NET_MPLS:
+    return net_hash_mpls((const net_addr_mpls *) n);
+  }
+  return 0;
+}
+
 int
 net_validate(const net_addr *N)
 {

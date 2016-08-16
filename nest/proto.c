@@ -1237,6 +1237,7 @@ protos_build(void)
   init_list(&protocol_list);
 
   proto_build(&proto_device);
+  proto_build(&proto_mpls);
 #ifdef CONFIG_RADV
   proto_build(&proto_radv);
 #endif
