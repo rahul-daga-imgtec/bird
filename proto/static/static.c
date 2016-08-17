@@ -63,8 +63,8 @@ static_install(struct proto *p, struct static_route *r)
   rta *ap = alloca(RTA_MAX_SIZE);
   rte *e;
 
-  if (!(r->state & STS_WANT) && r->dest != RTD_UNICAST)
-    return;
+  if (!(r->state & STS_WANT) && (r->state & (STS_INSTALLED | STS_FORCE)) && r->dest != RTD_UNICAST)
+    goto drop;
 
   DBG("Installing static route %N, rtd=%d\n", r->net, r->dest);
   bzero(ap, RTA_MAX_SIZE);
@@ -121,10 +121,13 @@ static_install(struct proto *p, struct static_route *r)
 
       if (!nhp) // No nexthop to install
       {
+drop:
 	rte_update(p, r->net, NULL);
 	return;
       }
     }
+  else
+    r->state |= STS_INSTALLED;
   
   if (r->dest == RTDX_RECURSIVE)
     {
