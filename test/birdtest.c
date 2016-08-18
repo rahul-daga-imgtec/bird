@@ -12,16 +12,18 @@
 #include <signal.h>
 #include <unistd.h>
 
-#ifdef HAVE_EXECINFO
-#include <execinfo.h>
-#endif
-
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 
 #include "test/birdtest.h"
+#include "sysdep/autoconf.h"
 
+#ifdef HAVE_EXECINFO_H
+#include <execinfo.h>
+#endif
+
+#define BACKTRACE_MAX_LINES 100
 
 static const char *request;
 static int list_tests;
@@ -113,13 +115,25 @@ bt_init(int argc, char *argv[])
 static void
 dump_stack(void)
 {
-#ifdef HAVE_EXECINFO
-  static void *backbuf[50];
-  int levels;
+#ifdef HAVE_EXECINFO_H
+  void *buf[BACKTRACE_MAX_LINES];
+  char **lines;
+  int levels, j;
 
-  levels = backtrace(backbuf, 50);
-  backtrace_symbols_fd(backbuf, levels, STDERR_FILENO);
-#endif
+  levels = backtrace(buf, BACKTRACE_MAX_LINES);
+  bt_log("backtrace() returned %d addresses", levels);
+
+  lines = backtrace_symbols(buf, levels);
+  if (lines == NULL) {
+    perror("backtrace_symbols");
+    exit(EXIT_FAILURE);
+  }
+
+  for (j = 0; j < levels; j++)
+    bt_log("%s", lines[j]);
+
+  free(lines);
+#endif /* HAVE_EXECINFO_H */
 }
 
 static
