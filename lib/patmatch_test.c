@@ -127,5 +127,5 @@ main(int argc, char *argv[])
 
   bt_test_suite(t_matching, "Pattern matching");
 
-  return bt_end();
+  return bt_exit_value();
 }

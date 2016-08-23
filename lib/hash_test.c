@@ -9,8 +9,8 @@
 #undef LOCAL_DEBUG
 
 #include "test/birdtest.h"
-#include "lib/hash.h"
 #include "nest/bird.h"
+#include "lib/hash.h"
 
 struct test_node {
   struct test_node *next;	/* Hash chain */
@@ -90,7 +90,7 @@ validate_filled_hash(void)
   for (i = 0; i < MAX_NUM; i++)
   {
     node = HASH_FIND(hash, TEST, nodes[i].key);
-    bt_assert_msg(node->key == nodes[i].key, "Hash should be filled, but we not find (%p) the node[%d] (%p) with .key = %u, .next %p \n", node, i, &nodes[i], nodes[i].key, nodes[i].next);
+    bt_assert_msg(node->key == nodes[i].key, "Hash should be filled, to find (%p) the node[%d] (%p) with .key = %u, .next %p", node, i, &nodes[i], nodes[i].key, nodes[i].next);
   }
 
   print_rate_of_fulfilment();
@@ -104,7 +104,7 @@ validate_empty_hash(void)
   for (i = 0; i < MAX_NUM; i++)
   {
     node = HASH_FIND(hash, TEST, nodes[i].key);
-    bt_assert_msg(node == NULL, "Hash should be empty, but we find (%p) the node[%d] (%p) with .key %u, .next %p \n", node, i, &nodes[i], nodes[i].key, nodes[i].next);
+    bt_assert_msg(node == NULL, "Hash should be empty, to find (%p) the node[%d] (%p) with .key %u, .next %p", node, i, &nodes[i], nodes[i].key, nodes[i].next);
   }
 }
 
@@ -164,7 +164,7 @@ t_insert2_find(void)
     node = &nodes[i];
     HASH_INSERT2(hash, TEST, my_pool, node);
   }
-  bt_assert_msg(hash.order != 1, "Surprisingly the hash did not auto-resize from order 2^1. The order of the hash is 2^%u.", hash.order);
+  bt_assert_msg(hash.order != 1, "The hash should auto-resize from order 2^1. The order of the hash is 2^%u.", hash.order);
 
   validate_filled_hash();
 
@@ -301,5 +301,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_walk_delsafe_remove2,	"HASH_WALK_DELSAFE and HASH_REMOVE2. HASH_REMOVE2 is HASH_REMOVE and smart auto-resize function");
   bt_test_suite(t_walk_filter,		"HASH_WALK_FILTER");
 
-  return bt_end();
+  return bt_exit_value();
 }

@@ -132,10 +132,10 @@ t_path_include(void)
   for (i = 0; i < AS_PATH_LENGTH; i++)
   {
     int counts_of_contains = count_asn_in_array(as_nums, as_nums[i]);
-    bt_assert_msg(as_path_contains(as_path, as_nums[i], counts_of_contains), "AS Path should contains %d-times one number %d", counts_of_contains, as_nums[i]);
+    bt_assert_msg(as_path_contains(as_path, as_nums[i], counts_of_contains), "AS Path should contains %d-times number %d", counts_of_contains, as_nums[i]);
 
-    bt_assert(as_path_filter(lp, as_path, NULL, as_nums[i], 0));
-    bt_assert(as_path_filter(lp, as_path, NULL, as_nums[i], 1));
+    bt_assert(as_path_filter(lp, as_path, NULL, as_nums[i], 0) != NULL);
+    bt_assert(as_path_filter(lp, as_path, NULL, as_nums[i], 1) != NULL);
   }
 
   for (i = 0; i < 10000; i++)
@@ -145,9 +145,9 @@ t_path_include(void)
     int result = as_path_contains(as_path, test_val, (counts_of_contains == 0 ? 1 : counts_of_contains));
 
     if (counts_of_contains)
-      bt_assert_msg(result, "As path contains %d-times the number %u, but as_path_contains() did not find them", counts_of_contains, test_val);
+      bt_assert_msg(result, "As path should contain %d-times the number %u", counts_of_contains, test_val);
     else
-      bt_assert_msg(result == 0, "As path does not contain the number %u, but as_path_contains() returns false positive", test_val);
+      bt_assert_msg(result == 0, "As path should not contain the number %u", test_val);
   }
 
   rfree(lp);
@@ -179,11 +179,10 @@ t_as_path_converting(void)
     bt_debug("\\03%d", buffer[i]);
   }
   bt_debug("\n");
-  bt_assert_msg(memcmp(buffer,
+  bt_assert(memcmp(buffer,
 		   "\032\039\030\030\030\030\030\030\030\039\030\030\030\030\030\030\030\038\030\030\030\030\030\030"
 		   "\030\037\030\030\030\030\030\030\030\036\030\030\030\030",
-		   38),
-		"Something was changed in as_path_convert_to_new() output");
+		   38));
 
   bzero(buffer, sizeof(buffer));
   int new_used;
@@ -194,10 +193,9 @@ t_as_path_converting(void)
     bt_debug("\\03%d", buffer[i]);
   }
   bt_debug("\n");
-  bt_assert_msg(memcmp(buffer,
+  bt_assert(memcmp(buffer,
 		   "\032\0310\030\039\030\038\030\037\030\036\030\035\030\034\030\033\030\032\030\031\030\030",
-		   22),
-		"Something was changed in as_path_convert_to_old() output");
+		   22));
 
   return BT_SUCCESS;
 }
@@ -212,5 +210,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_path_include, "Testing including a AS number in AS path");
   bt_test_suite(t_as_path_converting, "Testing as_path_convert_to_*() output constancy");
 
-  return bt_end();
+  return bt_exit_value();
 }

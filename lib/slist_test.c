@@ -235,7 +235,8 @@ t_add_tail_list(void)
   return BT_SUCCESS;
 }
 
-void dump(const char *str, slist *a)
+void
+dump(const char *str, slist *a)
 {
   snode *x;
 
@@ -373,12 +374,11 @@ main(int argc, char *argv[])
   bt_test_suite(t_add_tail,		"Adding nodes to tail of list");
   bt_test_suite(t_add_head, 		"Adding nodes to head of list");
   bt_test_suite(t_insert_node, 	 	"Inserting nodes to list");
-  bt_test_suite(t_remove_node, 	 	"Removing nodes from list");
+  bt_test_suite(t_remove_node,		"Removing nodes from list");
   bt_test_suite(t_add_tail_list,	"At the tail of a list adding the another list");
   bt_test_suite(t_iterator_walk,	"Iterator walk");
   bt_test_suite(t_safe_del_walk,	"WALK_SLIST_DELSAFE and s_rem_node all nodes");
-
   bt_test_suite(t_original, 		"The original BIRD test suit for SLIST");
 
-  return bt_end();
+  return bt_exit_value();
 }

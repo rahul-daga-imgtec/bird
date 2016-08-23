@@ -141,7 +141,7 @@ t_sha512_concating(void)
   byte_to_hex(hash_b, hash_b_, SHA512_SIZE);
 
   int are_hash_a_b_equal = (strncmp(hash_a, hash_b, sizeof(hash_a)) == 0);
-  bt_assert_msg(are_hash_a_b_equal, "Hashes are different: \n A: %s \n B: %s ", hash_a, hash_b);
+  bt_assert_msg(are_hash_a_b_equal, "Hashes A: %s, B: %s should be same", hash_a, hash_b);
 
   return BT_SUCCESS;
 }
@@ -450,5 +450,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_sha512_hmac, "Test Suite by RFC 4231");
   bt_test_suite(t_sha384_hmac, "Test Suite by RFC 4231");
 
-  return bt_end();
+  return bt_exit_value();
 }

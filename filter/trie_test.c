@@ -10,6 +10,7 @@
 #include "test/bt-utils.h"
 
 #include "filter/filter.h"
+#include "conf/conf.h"
 
 #define TESTS_NUM		10
 #define PREFIXES_NUM 		10
@@ -17,31 +18,33 @@
 
 #define BIG_BUFFER_SIZE		10000
 
-struct f_extended_prefix {
-  node n; 				/* node in prefixes list */
+/* Wrapping structure for storing f_prefixes structures in list */
+struct f_prefix_node {
+  node n;
   struct f_prefix prefix;
-  int l;
-  int h;
 };
 
 static u32
 xrandom(u32 max)
 {
-  return ((u32)bt_random() % max);
+  return (bt_random() % max);
 }
 
 static int
 is_prefix_included(list *prefixes, struct f_prefix *needle)
 {
-  struct f_extended_prefix *n;
+  struct f_prefix_node *n;
   WALK_LIST(n, *prefixes)
   {
-    ip_addr cmask = ipa_mkmask(MIN(n->prefix.len, needle->len));
+    ip6_addr cmask = ip6_mkmask(MIN(n->prefix.net.pxlen, needle->net.pxlen));
 
-    if ((ipa_compare(ipa_and(n->prefix.ip, cmask), ipa_and(needle->ip, cmask)) == 0) &&
-	(n->l <= needle->len) && (needle->len <= n->h))
+    ip6_addr ip = net6_prefix(&n->prefix.net);
+    ip6_addr needle_ip = net6_prefix(&needle->net);
+
+    if ((ipa_compare(ipa_and(ip, cmask), ipa_and(needle_ip, cmask)) == 0) &&
+	(n->prefix.lo <= needle->net.pxlen) && (needle->net.pxlen <= n->prefix.hi))
     {
-      bt_debug("FOUND\t" PRIipa "/%d %d-%d\n", ARGipa(n->prefix.ip), n->prefix.len, n->l, n->h);
+      bt_debug("FOUND\t" PRIip6 "/%d %d-%d\n", ARGip6(net6_prefix(&n->prefix.net)), n->prefix.net.pxlen, n->prefix.lo, n->prefix.hi);
       return 1; /* OK */
     }
   }
@@ -49,57 +52,49 @@ is_prefix_included(list *prefixes, struct f_prefix *needle)
 }
 
 static struct f_prefix
-get_random_prefix(void)
+get_random_ip6_prefix(void)
 {
-  struct f_prefix f = {
-#ifdef IPV6
-      .ip = ipa_build6(bt_random(), bt_random(), bt_random(), bt_random()),
-      .len = xrandom(120)+8,
-#else
-      .ip = ipa_build4(xrandom(256), xrandom(256), xrandom(256), xrandom(256)),
-      .len = xrandom(25)+8,
-#endif
-  };
+  struct f_prefix p;
+  u8 pxlen = xrandom(120)+8;
+  ip6_addr ip6 = ip6_build(bt_random(),bt_random(),bt_random(),bt_random());
+  net_addr_ip6 net6 = NET_ADDR_IP6(ip6, pxlen);
 
-  return f;
+  p.net = *((net_addr*) &net6);
+
+  if (bt_random() % 2)
+  {
+    p.lo = 0;
+    p.hi = p.net.pxlen;
+  }
+  else
+  {
+    p.lo = p.net.pxlen;
+    p.hi = net_max_prefix_length[p.net.type];
+  }
+
+  return p;
 }
 
 static void
-generate_random_prefixes(list *prefixes)
+generate_random_ipv6_prefixes(list *prefixes)
 {
-  int l, h, x, i;
-  for (i = 0; i < PREFIXES_NUM; i++)
+  for (int i = 0; i < PREFIXES_NUM; i++)
   {
-    struct f_prefix f = get_random_prefix();
+    struct f_prefix f = get_random_ip6_prefix();
 
-#ifdef IPV6
-    l = xrandom(129);
-    h = xrandom(129);
-#else
-    l = xrandom(33);
-    h = xrandom(33);
-#endif
-    if (h < l)
-    {
-      x = l;
-      l = h;
-      h = x;
-    }
-
-    struct f_extended_prefix *px = calloc(1, sizeof(struct f_extended_prefix));
+    struct f_prefix_node *px = calloc(1, sizeof(struct f_prefix_node));
     px->prefix = f;
-    px->l = l;
-    px->h = h;
 
-    bt_debug("ADD\t" PRIipa "/%d %d-%d\n", ARGipa(px->prefix.ip), px->prefix.len, px->l, px->h);
+    bt_debug("ADD\t" PRIip6 "/%d %d-%d\n", ARGip6(net6_prefix(&px->prefix.net)), px->prefix.net.pxlen, px->prefix.lo, px->prefix.hi);
     add_tail(prefixes, &px->n);
   }
 }
 
 static int
-t_match_prefix(void)
+t_match_net(void)
 {
-  bt_bird_init_with_simple_configuration();
+  bt_bird_init();
+  bt_config_parse(BT_CONFIG_SIMPLE);
 
   uint round;
   for (round = 0; round < TESTS_NUM; round++)
@@ -108,25 +103,25 @@ t_match_prefix(void)
     init_list(&prefixes);
     struct f_trie *trie = f_new_trie(config->mem, sizeof(struct f_trie_node));
 
-    generate_random_prefixes(&prefixes);
-    struct f_extended_prefix *n;
+    generate_random_ipv6_prefixes(&prefixes);
+    struct f_prefix_node *n;
     WALK_LIST(n, prefixes)
     {
-      trie_add_prefix(trie, n->prefix.ip, n->prefix.len, n->l, n->h);
+      trie_add_prefix(trie, &n->prefix.net, n->prefix.lo, n->prefix.hi);
     }
 
     int i;
     for (i = 0; i < PREFIX_TESTS_NUM; i++)
     {
-      struct f_prefix f = get_random_prefix();
-      bt_debug("TEST\t" PRIipa "/%d\n", ARGipa(f.ip), f.len);
+      struct f_prefix f = get_random_ip6_prefix();
+      bt_debug("TEST\t" PRIip6 "/%d\n", ARGip6(net6_prefix(&f.net)), f.net.pxlen);
 
       int should_be = is_prefix_included(&prefixes, &f);
-      int is_there  = trie_match_prefix(trie, f.ip, f.len);
-      bt_assert_msg(should_be == is_there, "Prefix " PRIipa "/%d %s", ARGipa(f.ip), f.len, (should_be ? "should be founded but was not founded in trie" : "is not inside trie but searching was false positive."));
+      int is_there  = trie_match_net(trie, &f.net);
+      bt_assert_msg(should_be == is_there, "Prefix " PRIip6 "/%d %s", ARGip6(net6_prefix(&f.net)), f.net.pxlen, (should_be ? "should be found in trie" : "should not be found in trie"));
     }
 
-    struct f_extended_prefix *nxt;
+    struct f_prefix_node *nxt;
     WALK_LIST_DELSAFE(n, nxt, prefixes)
     {
       free(n);
@@ -139,7 +134,8 @@ t_match_prefix(void)
 static int
 t_trie_same(void)
 {
-  bt_bird_init_with_simple_configuration();
+  bt_bird_init();
+  bt_config_parse(BT_CONFIG_SIMPLE);
 
   int round;
   for (round = 0; round < TESTS_NUM*4; round++)
@@ -147,25 +143,25 @@ t_trie_same(void)
     struct f_trie * trie1 = f_new_trie(config->mem, sizeof(struct f_trie_node));
     struct f_trie * trie2 = f_new_trie(config->mem, sizeof(struct f_trie_node));
 
-    list prefixes; /* of structs f_extended_prefix */
+    list prefixes; /* a list of f_extended_prefix structures */
     init_list(&prefixes);
     int i;
     for (i = 0; i < 100; i++)
-      generate_random_prefixes(&prefixes);
+      generate_random_ipv6_prefixes(&prefixes);
 
-    struct f_extended_prefix *n;
+    struct f_prefix_node *n;
     WALK_LIST(n, prefixes)
     {
-      trie_add_prefix(trie1, n->prefix.ip, n->prefix.len, n->l, n->h);
+      trie_add_prefix(trie1, &n->prefix.net, n->prefix.lo, n->prefix.hi);
     }
     WALK_LIST_BACKWARDS(n, prefixes)
     {
-      trie_add_prefix(trie2, n->prefix.ip, n->prefix.len, n->l, n->h);
+      trie_add_prefix(trie2, &n->prefix.net, n->prefix.lo, n->prefix.hi);
     }
 
-    bt_assert_msg(trie_same(trie1, trie2), "Trie1 and trie2 (backward fullfill) are not same!");
+    bt_assert(trie_same(trie1, trie2));
 
-    struct f_extended_prefix *nxt;
+    struct f_prefix_node *nxt;
     WALK_LIST_DELSAFE(n, nxt, prefixes)
     {
       free(n);
@@ -180,8 +176,8 @@ main(int argc, char *argv[])
 {
   bt_init(argc, argv);
 
-  bt_test_suite(t_match_prefix, "Testing random prefix matching");
+  bt_test_suite(t_match_net, "Testing random prefix matching");
   bt_test_suite(t_trie_same, "A trie filled forward should be same with a trie filled backward.");
 
-  return bt_end();
+  return bt_exit_value();
 }

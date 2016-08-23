@@ -35,8 +35,8 @@ uint bt_verbose;
 const char *bt_filename;
 const char *bt_test_id;
 
-uint bt_success;
-uint bt_test_suite_success;
+int bt_result;			/* Overall program run result */
+int bt_suite_result;		/* One suit result */
 
 long int
 bt_random(void)
@@ -54,20 +54,17 @@ bt_init(int argc, char *argv[])
 {
   int c;
 
-  bt_success = BT_SUCCESS;
   srandom(BT_RANDOM_SEED);
 
   bt_verbose = 0;
   bt_filename = argv[0];
+  bt_result = BT_SUCCESS;
   bt_test_id = NULL;
 
   while ((c = getopt(argc, argv, "lcftv")) >= 0)
     switch (c)
     {
       case 'l':
-	printf("\n"
-	       "          List of test cases  \n"
-	       "------------------------------\n");
 	list_tests = 1;
 	return;
 
@@ -107,8 +104,14 @@ bt_init(int argc, char *argv[])
 
   return;
 
-  usage:
-  printf("Usage: %s [-l] [-c] [-f] [-t] [-vvv] [<test_id>]\n", argv[0]);
+ usage:
+  printf("Usage: %s [-l] [-c] [-f] [-t] [-vvv] [<test_suit_name>]\n", argv[0]);
+  printf("Options: \n");
+  printf("  -l   List all test suite names and descriptions \n");
+  printf("  -c   Force unlimit core dumps (needs root privileges) \n");
+  printf("  -f   No forking \n");
+  printf("  -t   No timeout limit \n");
+  printf("  -v   More verbosity, maximum is 3 -vvv \n");
   exit(3);
 }
 
@@ -137,25 +140,115 @@ dump_stack(void)
 }
 
 static
-int bt_run_test_fn(int (*test_fn)(const void *), const void *test_fn_argument, int timeout)
+int bt_run_test_fn(int (*fn)(const void *), const void *fn_arg, int timeout)
 {
   int result;
   alarm(timeout);
-  if (test_fn_argument)
-    result = test_fn(test_fn_argument);
+
+  if (fn_arg)
+    result = fn(fn_arg);
   else
-    result = ((int (*)(void))test_fn)();
-  if (bt_test_suite_success == BT_FAILURE)
+    result = ((int (*)(void))fn)();
+
+  if (bt_suite_result != BT_SUCCESS)
     result = BT_FAILURE;
+
   return result;
 }
 
+static uint
+get_num_terminal_cols(void)
+{
+  struct winsize w = {};
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+  uint cols = w.ws_col;
+  return (cols > 0 ? cols : 80);
+}
+
+/**
+ * bt_log_result - pretty print of test result
+ * @result: BT_SUCCESS or BT_FAILURE
+ * @fmt: a description message (could be long, over more lines)
+ * @argptr: variable argument list
+ *
+ * This function is used for pretty printing of test results on all verbose
+ * levels.
+ */
+static void
+bt_log_result(int result, const char *fmt, va_list argptr)
+{
+  char fmt_buf[BT_BUFFER_SIZE];
+  char msg_buf[BT_BUFFER_SIZE];
+  char *pos;
+
+  snprintf(msg_buf, sizeof(msg_buf), "%s: %s%s",
+	   bt_filename,
+	   bt_test_id ? bt_test_id : "",
+	   (bt_test_id && fmt) ? ": " : "");
+  pos = msg_buf + strlen(msg_buf);
+
+  vsnprintf(pos, sizeof(msg_buf) - (pos - msg_buf), fmt, argptr);
+
+  /* 'll' means here Last Line */
+  uint cols = get_num_terminal_cols();
+  uint ll_len = (strlen(msg_buf) % cols) + BT_PROMPT_OK_FAIL_STRLEN;
+  uint ll_offset = (ll_len / get_num_terminal_cols() + 1) * cols - BT_PROMPT_OK_FAIL_STRLEN;
+  uint offset = ll_offset + (strlen(msg_buf) / cols) * cols;
+  snprintf(fmt_buf, sizeof(fmt_buf), "%%-%us%%s\n", offset);
+
+  const char *result_str = BT_PROMPT_OK;
+  if (result != BT_SUCCESS)
+    result_str = BT_PROMPT_FAIL;
+
+  printf(fmt_buf, msg_buf, result_str);
+}
+
+/**
+ * bt_log_suite_result - pretty print of suite case result
+ * @result: BT_SUCCESS or BT_FAILURE
+ * @fmt: a description message (could be long, over more lines)
+ * ...: variable argument list
+ *
+ * This function is used for pretty printing of test suite case result.
+ */
 void
-bt_test_suite_base(int (*test_fn)(const void *), const char *test_id, const void *test_fn_argument, int forked, int timeout, const char *dsc, ...)
+bt_log_suite_result(int result, const char *fmt, ...)
+{
+  if(bt_verbose >= BT_VERBOSE_SUITE)
+  {
+    va_list argptr;
+    va_start(argptr, fmt);
+    bt_log_result(result, fmt, argptr);
+    va_end(argptr);
+  }
+}
+
+/**
+ * bt_log_suite_case_result - pretty print of suite result
+ * @result: BT_SUCCESS or BT_FAILURE
+ * @fmt: a description message (could be long, over more lines)
+ * ...: variable argument list
+ *
+ * This function is used for pretty printing of test suite result.
+ */
+void
+bt_log_suite_case_result(int result, const char *fmt, ...)
+{
+  if(bt_verbose >= BT_VERBOSE_SUITE_CASE)
+  {
+    va_list argptr;
+    va_start(argptr, fmt);
+    bt_log_result(result, fmt, argptr);
+    va_end(argptr);
+  }
+}
+
+void
+bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, int forked, int timeout, const char *dsc, ...)
 {
   if (list_tests)
   {
-    printf("%28s : ", test_id);
+    printf("%28s - ", id);
     va_list args;
     va_start(args, dsc);
     vprintf(dsc, args);
@@ -170,20 +263,18 @@ bt_test_suite_base(int (*test_fn)(const void *), const char *test_id, const void
   if (no_timeout)
     timeout = 0;
 
-  if (request && strcmp(test_id, request))
+  if (request && strcmp(id, request))
     return;
 
-  int result;
-  bt_test_suite_success = BT_SUCCESS;
+  bt_suite_result = BT_SUCCESS;
+  bt_test_id = id;
 
-  bt_test_id = test_id;
-
-  if (bt_verbose >= BT_VERBOSE_DEBUG)
+  if (bt_verbose >= BT_VERBOSE_ABSOLUTELY_ALL)
     bt_log("Starting");
 
   if (!forked)
   {
-    result = bt_run_test_fn(test_fn, test_fn_argument, timeout);
+    bt_run_test_fn(fn, fn_arg, timeout);
   }
   else
   {
@@ -192,25 +283,33 @@ bt_test_suite_base(int (*test_fn)(const void *), const char *test_id, const void
 
     if (pid == 0)
     {
-      result = bt_run_test_fn(test_fn, test_fn_argument, timeout);
-      _exit(result);
+      /* child of fork */
+      _exit(bt_run_test_fn(fn, fn_arg, timeout));
     }
 
     int s;
     int rv = waitpid(pid, &s, 0);
     bt_syscall(rv < 0, "waitpid");
 
-    result = 2;
+    bt_suite_result = 2;
     if (WIFEXITED(s))
-      result = WEXITSTATUS(s);
+    {
+      /* Normal exit */
+      bt_suite_result = WEXITSTATUS(s);
+    }
     else if (WIFSIGNALED(s))
     {
+      /* Stopped by signal */
+      bt_suite_result = BT_FAILURE;
+
       int sn = WTERMSIG(s);
       if (sn == SIGALRM)
+      {
 	bt_log("Timeout expired");
+      }
       else if (sn == SIGSEGV)
       {
-	bt_log("Segmentation fault:");
+	bt_log("Segmentation fault");
 	dump_stack();
       }
       else if (sn != SIGABRT)
@@ -221,60 +320,15 @@ bt_test_suite_base(int (*test_fn)(const void *), const char *test_id, const void
       bt_log("Core dumped");
   }
 
-  if (result == BT_FAILURE)
-    bt_success = BT_FAILURE;
+  if (bt_suite_result == BT_FAILURE)
+    bt_result = BT_FAILURE;
 
-  bt_result((result == BT_SUCCESS ? BT_PROMPT_OK : BT_PROMPT_FAIL), "%s", bt_test_id);
+  bt_log_suite_result(bt_suite_result, NULL);
   bt_test_id = NULL;
 }
 
-static uint
-get_num_terminal_cols(void)
-{
-  struct winsize w = {};
-  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-  uint cols = w.ws_col;
-  return (cols > 0 ? cols : 80);
-}
-
-void
-bt_result(const char *to_right_align_msg, const char *to_left_align_msg, ...)
-{
-  if (bt_verbose >= BT_VERBOSE_TEST_SUITE)
-  {
-    char msg_buf[BT_BUFFER_SIZE];
-
-    snprintf(msg_buf, sizeof(msg_buf), "%s: ", bt_filename);
-
-    va_list argptr;
-    va_start(argptr, to_left_align_msg);
-    uint used = strlen((char *) msg_buf);
-    vsnprintf(msg_buf + used, sizeof(msg_buf) - used, to_left_align_msg, argptr);
-    va_end(argptr);
-
-    char fmt_buf[BT_BUFFER_SIZE];
-    uint line_len = strlen(msg_buf) + BT_PROMPT_OK_FAIL_LEN;
-    uint left_offset = (line_len / get_num_terminal_cols() + 1) * get_num_terminal_cols() - BT_PROMPT_OK_FAIL_LEN;
-    snprintf(fmt_buf, sizeof(fmt_buf), "%%-%us%%s\n", left_offset);
-
-    fprintf(stderr, fmt_buf, msg_buf, to_right_align_msg);
-  }
-}
-
 int
-bt_end(void)
+bt_exit_value(void)
 {
-  return (bt_success == BT_SUCCESS ? 0 : 1);
-}
-
-void
-bt_strncat_(char *buf, size_t buf_size, const char *str, ...)
-{
-  if (str != NULL)
-  {
-    va_list argptr;
-    va_start(argptr, str);
-    vsnprintf(buf + strlen(buf), buf_size, str, argptr);
-    va_end(argptr);
-  }
+  return bt_result == BT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
 }

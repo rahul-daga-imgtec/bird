@@ -173,5 +173,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_fletcher16_compute, "Fletcher-16 Compute Tests");
   bt_test_suite(t_fletcher16_checksum, "Fletcher-16 Checksum Tests");
 
-  return bt_end();
+  return bt_exit_value();
 }

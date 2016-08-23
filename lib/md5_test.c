@@ -217,5 +217,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_md5,      "Test Suite by RFC 1321");
   bt_test_suite(t_md5_hmac, "Test Suite by RFC 2202");
 
-  return bt_end();
+  return bt_exit_value();
 }

@@ -10,6 +10,20 @@
 #include "test/bt-utils.h"
 
 #include "filter/filter.h"
+#include "conf/conf.h"
+
+#define MAX_TREE_HEIGHT 13
+
+static void
+start_conf_env(void)
+{
+  bt_bird_init();
+  bt_config_parse(BT_CONFIG_SIMPLE);
+
+  pool *p = rp_new(&root_pool, "helper_pool");
+  linpool *l = lp_new(p, 4080);
+  cfg_mem = l;
+}
 
 static struct f_tree *
 new_tree(uint id)
@@ -21,17 +35,22 @@ new_tree(uint id)
   return tree;
 }
 
+/*
+ * Show subtree in infix notation
+ */
 static void
 show_subtree(struct f_tree *node)
 {
   if (!node)
     return;
 
+  show_subtree(node->left);
+
   if (node->from.val.i == node->to.val.i)
     bt_debug("%u ", node->from.val.i);
   else
     bt_debug("%u..%u ", node->from.val.i, node->to.val.i);
-  show_subtree(node->left);
+
   show_subtree(node->right);
 }
 
@@ -47,7 +66,7 @@ show_tree2(struct f_tree *root_node, const char *tree_name)
 #define show_tree(tree) show_tree2(tree, #tree);
 
 static uint
-get_nodes_count_in_full_tree(uint height)
+get_nodes_count_full_bin_tree(uint height)
 {
   return (naive_pow(2, height+1) - 1);
 }
@@ -58,7 +77,7 @@ get_balanced_full_subtree(uint height, uint idx)
   struct f_tree *node = new_tree(idx);
   if (height > 0)
   {
-    uint nodes_in_subtree = get_nodes_count_in_full_tree(--height);
+    uint nodes_in_subtree = get_nodes_count_full_bin_tree(--height);
     node->left  = get_balanced_full_subtree(height, idx - nodes_in_subtree/2 - 1);
     node->right = get_balanced_full_subtree(height, idx + nodes_in_subtree/2 + 1);
   }
@@ -68,7 +87,7 @@ get_balanced_full_subtree(uint height, uint idx)
 static struct f_tree *
 get_balanced_full_tree(uint height)
 {
-  return get_balanced_full_subtree(height, get_nodes_count_in_full_tree(height)/2);
+  return get_balanced_full_subtree(height, get_nodes_count_full_bin_tree(height)/2);
 }
 
 static struct f_tree *
@@ -97,13 +116,14 @@ get_random_degenerated_left_tree(uint nodes_count)
 
   size_t avaible_indexes_size = nodes_count * sizeof(byte);
   byte *avaible_indexes = malloc(avaible_indexes_size);
-  bzero(avaible_indexes, avaible_indexes_size);
+  memset(avaible_indexes, 0, avaible_indexes_size);
 
   struct f_tree *n;
   for (n = tree; n; n = n->left)
   {
     uint selected_idx;
-    do {
+    do
+    {
       selected_idx = bt_random() % nodes_count;
     } while(avaible_indexes[selected_idx] != 0);
 
@@ -138,36 +158,38 @@ get_balanced_tree_with_ranged_values(uint nodes_count)
 static int
 t_balancing(void)
 {
-  bt_bird_init_with_simple_configuration();
+  start_conf_env();
 
   uint height;
-  for (height = 1; height < 13; height++)
+  for (height = 1; height < MAX_TREE_HEIGHT; height++)
   {
-    uint nodes_count = get_nodes_count_in_full_tree(height);
+    uint nodes_count = get_nodes_count_full_bin_tree(height);
 
     struct f_tree *simple_degenerated_tree = get_degenerated_left_tree(nodes_count);
-    struct f_tree *expected_balanced_tree = get_balanced_full_tree(height);
-    struct f_tree *balanced_tree_from_simple_degenerated = build_tree(simple_degenerated_tree);
-
     show_tree(simple_degenerated_tree);
-    show_tree(expected_balanced_tree);
-    show_tree(balanced_tree_from_simple_degenerated);
 
-    bt_assert(same_tree(balanced_tree_from_simple_degenerated, expected_balanced_tree));
+    struct f_tree *expected_balanced_tree = get_balanced_full_tree(height);
+    show_tree(expected_balanced_tree);
+
+    struct f_tree *balanced_tree_from_simple = build_tree(simple_degenerated_tree);
+    show_tree(balanced_tree_from_simple);
+
+    bt_assert(same_tree(balanced_tree_from_simple, expected_balanced_tree));
   }
 
   return BT_SUCCESS;
 }
 
+
 static int
 t_balancing_random(void)
 {
-  bt_bird_init_with_simple_configuration();
+  start_conf_env();
 
   uint height;
-  for (height = 1; height < 10; height++)
+  for (height = 1; height < MAX_TREE_HEIGHT; height++)
   {
-    uint nodes_count = get_nodes_count_in_full_tree(height);
+    uint nodes_count = get_nodes_count_full_bin_tree(height);
 
     struct f_tree *expected_balanced_tree = get_balanced_full_tree(height);
 
@@ -175,13 +197,14 @@ t_balancing_random(void)
     for(i = 0; i < 10; i++)
     {
       struct f_tree *random_degenerated_tree = get_random_degenerated_left_tree(nodes_count);
-      struct f_tree *balanced_tree_from_random_degenerated = build_tree(random_degenerated_tree);
-
       show_tree(random_degenerated_tree);
-      show_tree(expected_balanced_tree);
-      show_tree(balanced_tree_from_random_degenerated);
 
-      bt_assert(same_tree(balanced_tree_from_random_degenerated, expected_balanced_tree));
+      struct f_tree *balanced_tree_from_random = build_tree(random_degenerated_tree);
+
+      show_tree(expected_balanced_tree);
+      show_tree(balanced_tree_from_random);
+
+      bt_assert(same_tree(balanced_tree_from_random, expected_balanced_tree));
     }
   }
 
@@ -191,14 +214,15 @@ t_balancing_random(void)
 static int
 t_find(void)
 {
-  bt_bird_init_with_simple_configuration();
+  start_conf_env();
 
   uint height;
-  for (height = 1; height < 13; height++)
+  for (height = 1; height < MAX_TREE_HEIGHT; height++)
   {
-    uint nodes_count = get_nodes_count_in_full_tree(height);
+    uint nodes_count = get_nodes_count_full_bin_tree(height);
 
     struct f_tree *tree = get_balanced_full_tree(height);
+    show_tree(tree);
 
     struct f_val looking_up_value = {
 	.type = T_INT
@@ -236,27 +260,32 @@ get_max_value_in_unbalanced_tree(struct f_tree *node, uint max)
 static int
 t_find_ranges(void)
 {
-  bt_bird_init_with_simple_configuration();
+  start_conf_env();
 
   uint height;
-  for (height = 1; height < 10; height++)
+  for (height = 1; height < MAX_TREE_HEIGHT; height++)
   {
-    uint nodes_count = get_nodes_count_in_full_tree(height);
+    uint nodes_count = get_nodes_count_full_bin_tree(height);
 
     struct f_tree *tree = get_balanced_tree_with_ranged_values(nodes_count);
     uint max_value = get_max_value_in_unbalanced_tree(tree, 0);
+
+    show_tree(tree);
+
     bt_debug("max_value: %u \n", max_value);
 
-    struct f_val looking_up_value = {
+    struct f_val needle = {
 	.type = T_INT
     };
-    for(looking_up_value.val.i = 0; looking_up_value.val.i <= max_value; looking_up_value.val.i += ((uint)bt_random()/nodes_count))
+    uint *i = &needle.val.i;
+
+    for(*i = 0; *i <= max_value; *i += (uint)bt_random()/nodes_count)
     {
-      struct f_tree *found_tree = find_tree(tree, looking_up_value);
-      bt_debug("searching: %u \n", looking_up_value.val.i);
+      struct f_tree *found_tree = find_tree(tree, needle);
+      bt_debug("searching: %u \n", *i);
       bt_assert(
-	  (val_compare(looking_up_value, found_tree->from) == 0) || (val_compare(looking_up_value, found_tree->to) == 0) ||
-	 ((val_compare(looking_up_value, found_tree->from) == 1) && (val_compare(looking_up_value, found_tree->to) == -1))
+	  (val_compare(needle, found_tree->from) == 0) || (val_compare(needle, found_tree->to) == 0) ||
+	 ((val_compare(needle, found_tree->from) == 1) && (val_compare(needle, found_tree->to) == -1))
       );
     }
   }
@@ -274,5 +303,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_find, "Finding values in trees");
   bt_test_suite(t_find_ranges, "Finding values in trees with random ranged values");
 
-  return bt_end();
+  return bt_exit_value();
 }

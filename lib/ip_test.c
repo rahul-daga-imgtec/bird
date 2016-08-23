@@ -34,7 +34,7 @@ t_ip4_pton(void)
 
   bt_assert_fn_in_out(ip4_pton, in_out, "'%s'", NULL);
 
-  return bt_test_suite_success;
+  return BT_SUCCESS;
 }
 
 static int
@@ -76,7 +76,7 @@ t_ip6_pton(void)
 
   bt_assert_fn_in_out(ip6_pton, in_out, "'%s'", NULL);
 
-  return bt_test_suite_success;
+  return BT_SUCCESS;
 }
 
 char *
@@ -109,7 +109,7 @@ t_ip4_ntop(void)
 
   bt_assert_fn_in_out(ip4_ntop_, in_out, NULL, "'%s'");
 
-  return bt_test_suite_success;
+  return BT_SUCCESS;
 }
 
 char *
@@ -137,7 +137,7 @@ t_ip6_ntop(void)
 
   bt_assert_fn_in_out(ip6_ntop_, in_out, NULL, "'%s'");
 
-  return bt_test_suite_success;
+  return BT_SUCCESS;
 }
 
 int
@@ -150,6 +150,6 @@ main(int argc, char *argv[])
   bt_test_suite(t_ip4_ntop, "Converting ip4_addr struct to IPv4 string");
   bt_test_suite(t_ip6_ntop, "Converting ip6_addr struct to IPv6 string");
 
-  return bt_end();
+  return bt_exit_value();
 }
 

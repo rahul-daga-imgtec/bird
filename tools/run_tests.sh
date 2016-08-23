@@ -68,3 +68,5 @@ echo "    Success: $num_succ_tests"
 echo "    Failure: $num_fail_tests"
 echo "    Build-Failure: $num_build_fail_tests"
 echo ""
+
+exit $((num_fail_tests+num_build_fail_tests))

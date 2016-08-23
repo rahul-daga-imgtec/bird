@@ -9,7 +9,7 @@ all depend tags install install-docs tests:
 docs userdocs progdocs:
 	$(MAKE) -C doc $@
 
-check: tests
+check: all tests
 	tools/run_tests.sh "@objdir@" "@srcdir@"
 
 clean: clean-tests

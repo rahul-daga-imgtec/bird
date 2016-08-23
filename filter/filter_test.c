@@ -23,114 +23,99 @@
 static int
 t_simple(void)
 {
-#define TESTING_FILTER_NAME "testing_filter"
-
   bt_bird_init();
 
-  /*
+#define TESTING_FILTER_NAME	"my_filter"
+#define TESTING_FILTER_BODY	"{ \n"					\
+				"   if net ~ 10.0.0.0/20 then \n" 	\
+				"     accept; \n"			\
+				"   else \n"				\
+				"     reject;\n"			\
+				"} \n"
+
   struct config *cfg = bt_config_parse(
-      BT_CONFIG_SIMPLE
-      "\n"
-      "filter " TESTING_FILTER_NAME "\n"
-      "{\n"
-      "   if net ~ 10.0.0.0/20 then\n"
-      "     accept;\n"
-      "   else\n"
-      "     reject;\n"
-      "}\n"
-      "\n"
-      "filter " TESTING_FILTER_NAME "2\n"
-      "{\n"
-      "   if net ~ 10.0.0.0/20 then\n"
-      "     accept;\n"
-      "   else {\n"
-      "     reject; } \n"
-      "}\n"
-      "\n"
-  );
-*/
+    BT_CONFIG_SIMPLE
+    "filter " TESTING_FILTER_NAME "1" " " TESTING_FILTER_BODY
+    "filter " TESTING_FILTER_NAME "2" " " TESTING_FILTER_BODY);
 
-  struct symbol *sym = NULL;
-  sym = cf_get_symbol(TESTING_FILTER_NAME);
+  if (cfg)
+  {
+    struct symbol *sym_f1 = cf_get_symbol(TESTING_FILTER_NAME "1");
+    struct symbol *sym_f2 = cf_get_symbol(TESTING_FILTER_NAME "2");
 
-  struct symbol *sym2 = NULL;
-  sym2 = cf_get_symbol(TESTING_FILTER_NAME "2");
+    struct filter *f1 = sym_f1->def;
+    struct filter *f2 = sym_f2->def;
 
+    bt_assert(strcmp(filter_name(f1), TESTING_FILTER_NAME "1") == 0);
+    bt_assert(strcmp(filter_name(f2), TESTING_FILTER_NAME "2") == 0);
 
-  struct filter *f = sym->def;
-  struct filter *f2 = sym2->def;
-  bt_assert(strcmp(filter_name(f), TESTING_FILTER_NAME) == 0);
-
-
-  bt_assert(filter_same(f,f2));
-
-//  bt_debug("f_eval_asn: %u \n", f_eval_asn(f->root));
-//  bt_debug("f_eval_int: %u \n", f_eval_int(f->root));
-//  struct f_val v = f_eval(f->root, cfg->mem);
-//  bt_debug("v type: %d \n", v.type);
-
+    bt_assert(filter_same(f1,f2));
+  }
 
   /* TODO: check the testing filter */
 
   return BT_SUCCESS;
 }
+#undef TESTING_FILTER_NAME
+#undef TESTING_FILTER_BODY
 
 static char *
 load_file(const char *filename)
 {
   FILE *f = fopen(filename, "rb");
-  bt_assert_msg(f, "Cannot open file %s", filename);
+  bt_assert_msg(f != NULL, "Open file %s", filename);
+
   fseek(f, 0, SEEK_END);
   long pos = ftell(f);
   fseek(f, 0, SEEK_SET);
 
   char *file_body = mb_allocz(&root_pool, pos+1);
-  bt_assert_msg(file_body, "Memory allocation failed for file %s", filename);
-  bt_assert_msg(fread(file_body, pos, 1, f) == 1, "Failed reading from file %s", filename);
-
+  bt_assert_msg(file_body != NULL, "Memory allocation for file %s", filename);
+  bt_assert_msg(fread(file_body, pos, 1, f) == 1, "Reading from file %s", filename);
   fclose(f);
+
   return file_body;
 }
 
 static int
-t_example_config_files(const void *filename_void)
+test_config_file(const void *filename_void)
 {
   bt_bird_init();
 
-  char *filename = (char *)filename_void;
-  bt_debug("Testing BIRD configuration from %s\n", filename);
+  size_t fn_size = strlen((const char *) filename_void) + 1;
+  char *filename = alloca(fn_size);
+  strncpy(filename, filename_void, fn_size);
+  bt_debug("Testing configuration %sd\n", filename);
+  config_name = filename;
 
   char *cfg_str = load_file(filename);
-  bt_config_parse(cfg_str);
+  struct config *cfg = bt_config_parse(cfg_str);
   mb_free(cfg_str);
 
-  config_name = filename;
-  read_config();
-  struct config *conf = read_config();
-  config_commit(conf, RECONFIG_HARD, 0);
-
-  return bt_test_suite_success;
+  return cfg ? BT_SUCCESS : BT_FAILURE;
 }
+
+static int t_config_file1(const void *fname) { return test_config_file(fname); }
+static int t_config_file2(const void *fname) { return test_config_file(fname); }
+static int t_config_file3(const void *fname) { return test_config_file(fname); }
+static int t_config_file4(const void *fname) { return test_config_file(fname); }
 
 int
 main(int argc, char *argv[])
 {
   bt_init(argc, argv);
 
+#define TEST_FNAME_1 "filter/test.conf"
+#define TEST_FNAME_2 "filter/test.conf2"
+#define TEST_FNAME_3 "filter/test_bgp_filtering.conf"
+#define TEST_FNAME_4 "filter/test6.conf"
+#define bt_test_suite_arg_(x) bt_test_suite_arg(t_config_file##x, TEST_FNAME_##x, TEST_FNAME_##x)
+
   bt_test_suite(t_simple, "Simple filter testing");
+  bt_test_suite_arg_(1);
+  bt_test_suite_arg_(2);
+  bt_test_suite_arg_(3);
+  bt_test_suite_arg_(4);
 
-  const char *files[] = {
-//    "filter/test.conf",
-    "filter/test.conf2",
-//    "filter/test_bgp_filtering.conf",
-#ifdef IPV6
-    "filter/test6.conf",
-#endif
-  };
-  size_t files_arr_size = sizeof(files)/sizeof(files[0]);
-  size_t i;
-  for (i = 0; i < files_arr_size; i++)
-    bt_test_suite_arg_extra(t_example_config_files, files[i], BT_DEFAULT_FORKING, 30, "Test a example config file %s", files[i]);
-
-  return bt_end();
+  return bt_exit_value();
 }

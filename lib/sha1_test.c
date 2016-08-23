@@ -69,7 +69,7 @@ t_sha1(void)
 
   bt_assert_fn_in_out(get_sha1, in_out, "'%s'", "'%s'");
 
-  return BT_SUCCESS;
+  return bt_suite_result;
 }
 
 #define HMAC_BUFFER_SIZE 80
@@ -238,5 +238,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_sha1, 	"Test Suite by RFC 1321 (it is for MD5)");
   bt_test_suite(t_sha1_hmac, 	"Test Suite by RFC 2202");
 
-  return bt_end();
+  return bt_exit_value();
 }

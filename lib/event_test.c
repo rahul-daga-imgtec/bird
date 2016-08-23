@@ -8,6 +8,8 @@
 
 
 #include "test/birdtest.h"
+
+#include "lib/net.h"
 #include "lib/event.h"
 #include "conf/conf.h"
 #include "nest/locks.h"
@@ -23,7 +25,7 @@ int event_check_points[MAX_NUM];
   do { 						\
     bt_debug("Event Hook " #num "\n");		\
     event_check_points[num] = 1;		\
-    bt_assert_msg(event_check_points[num-1], "Did not keep the right order!"); 	\
+    bt_assert_msg(event_check_points[num-1], "Events should be run in right order"); \
   } while (0)
 
 static void event_hook_1(void *data) { event_hook_body(1); }
@@ -56,7 +58,7 @@ t_ev_run_list(void)
   io_init();
   rt_init();
   if_init();
-  roa_init();
+//  roa_init();
   config_init();
   config = config_alloc("");
 
@@ -81,6 +83,6 @@ main(int argc, char *argv[])
 
   bt_test_suite(t_ev_run_list, "Schedule and run 3 events in right order.");
 
-  return bt_end();
+  return bt_exit_value();
 }
 

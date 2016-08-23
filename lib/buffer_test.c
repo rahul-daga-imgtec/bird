@@ -143,5 +143,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_buffer_resize, "Init a small buffer and try overfill");
   bt_test_suite(t_buffer_flush, "Fill and flush all elements");
 
-  return bt_end();
+  return bt_exit_value();
 }

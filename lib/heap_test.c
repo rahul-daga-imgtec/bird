@@ -182,5 +182,5 @@ main(int argc, char *argv[])
   bt_test_suite(t_heap_delete, "Deleting");
   bt_test_suite(t_heap_0, "Is a heap[0] really unused?");
 
-  return bt_end();
+  return bt_exit_value();
 }
