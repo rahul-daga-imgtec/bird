@@ -353,7 +353,7 @@ ea_find(ea_list *e, unsigned id)
  * for first occurrences of attributes with ID in specified interval from @id to
  * (@id + @max - 1), returning pointers to found &eattr structures, storing its
  * walk state in @s for subsequent calls.
-
+ *
  * The function ea_walk() is supposed to be called in a loop, with initially
  * zeroed walk state structure @s with filled the initial extended attribute
  * list, returning one found attribute in each call or %NULL when no other
@@ -946,8 +946,24 @@ rta_alloc_hash(void)
 static inline uint
 rta_hash(rta *a)
 {
-  return mem_hash(((void *)a) + offsetof(rta, src), sizeof(rta) - offsetof(rta, src)) ^
-	 mpnh_hash(a->nexthops) ^ ea_hash(a->eattrs);
+  u64 h;
+  mem_hash_init(&h);
+#define MIX(f) mem_hash_mix(&h, &(a->f), sizeof(a->f));
+  MIX(src);
+  MIX(hostentry);
+  MIX(iface);
+  MIX(gw);
+  MIX(from);
+  MIX(igp_metric);
+  MIX(source);
+  MIX(scope);
+  MIX(cast);
+  MIX(dest);
+  MIX(flags);
+  MIX(aflags);
+#undef MIX
+
+  return mem_hash_value(&h) ^ mpnh_hash(a->nexthops) ^ ea_hash(a->eattrs);
 }
 
 static inline int

@@ -185,17 +185,38 @@
 
 #define HASH_WALK_FILTER_END } while (0)
 
+static inline void
+mem_hash_init(u64 *h)
+{
+  *h = 0x001047d54778bcafULL;
+}
+
+static inline void
+mem_hash_mix(u64 *h, void *p, int s)
+{
+  const u64 multiplier = 0xb38bc09a61202731ULL;
+  const char *pp = p;
+  uint i;
+  for (i=0; i<s/4; i++)
+    *h = *h * multiplier + ((const u32 *)pp)[i];
+  
+  for (i=s & ~0x3; i<s; i++)
+    *h = *h * multiplier + pp[i];
+}
+
+static inline uint
+mem_hash_value(u64 *h)
+{
+  return ((*h >> 32) ^ (*h & 0xffffffff));
+}
+
 static inline uint
 mem_hash(void *p, int s)
 {
-  const char *pp = p;
-  const u64 multiplier = 0xb38bc09a61202731ULL;
-  u64 value = 0x001047d54778bcafULL;
-  int i;
-  for (i=0;i<s;i++)
-    value = value*multiplier + pp[i];
-
-  return ((value >> 32) ^ (value & 0xffffffff));
+  static u64 h;
+  mem_hash_init(&h);
+  mem_hash_mix(&h, p, s);
+  return mem_hash_value(&h);
 }
 
 #endif

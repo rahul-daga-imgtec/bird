@@ -12,7 +12,7 @@
 #include "lib/lists.h"
 #include "lib/resource.h"
 #include "lib/event.h"
-#include "lib/timer.h"
+#include "sysdep/unix/timer.h"
 #include "nest/route.h"
 #include "conf/conf.h"
 
@@ -81,7 +81,7 @@ void protos_dump_all(void);
 
 extern struct protocol
   proto_device, proto_radv, proto_rip, proto_static,
-  proto_ospf, proto_pipe, proto_bgp, proto_bfd;
+  proto_ospf, proto_pipe, proto_bgp, proto_bfd, proto_babel;
 
 /*
  *	Routing Protocol Instance
@@ -271,7 +271,7 @@ proto_get_router_id(struct proto_config *pc)
 }
 
 /* Moved from route.h to avoid dependency conflicts */
-static inline void rte_update(struct proto *p, net *net, rte *new) { rte_update2(p->main_channel, net, new, p->main_source); }
+static inline void rte_update(struct proto *p, net_addr *n, rte *new) { rte_update2(p->main_channel, n, new, p->main_source); }
 
 extern list proto_list;
 

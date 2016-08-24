@@ -1,33 +1,30 @@
-source=cf-parse.tab.c cf-lex.c conf.c
-root-rel=../
-dir-name=conf
-dynamic-dir=1
+src := cf-parse.tab.c cf-lex.c conf.c
+obj := $(src-o-files)
 
-include ../Rules
-
-conf-src=$(srcdir)/conf
-conf-fragments=$(conf-src)/confbase.Y @CONFS@ $(addsuffix /config.Y,$(static-dir-paths))
+$(all-daemon)
 
 ifdef DEBUG
 BISON_DEBUG=-t
 #FLEX_DEBUG=-d
 endif
 
-cf-parse.tab.h: cf-parse.tab.c
+$(conf-y-targets): $(s)confbase.Y
+	$(M4) -P $| $^ >$@
 
-cf-parse.tab.c: cf-parse.y
-	$(BISON) -bcf-parse -dv -pcf_ $(BISON_DEBUG) cf-parse.y
+$(o)cf-parse.y: | $(s)gen_parser.m4
+$(o)keywords.h: | $(s)gen_keywords.m4
+$(o)commands.h: | $(s)gen_commands.m4 $(srcdir)/client/cmds.m4
 
-cf-parse.y: $(conf-fragments) $(conf-src)/gen_parser.m4
-	$(M4) -P $(conf-src)/gen_parser.m4 $(conf-fragments) >cf-parse.y
+$(o)cf-parse.tab.h: $(o)cf-parse.tab.c
 
-keywords.h: $(conf-fragments) $(conf-src)/gen_keywords.m4
-	$(M4) -P $(conf-src)/gen_keywords.m4 $(conf-fragments) >keywords.h
+$(o)cf-parse.tab.c: $(o)cf-parse.y
+	$(BISON) $(BISON_DEBUG) -dv -pcf_ -b $(@:.tab.c=) $<
 
-commands.h: $(conf-fragments) $(conf-src)/gen_commands.m4 $(srcdir)/client/cmds.m4
-	$(M4) -P $(conf-src)/gen_commands.m4 $(srcdir)/client/cmds.m4 $(conf-fragments) | sort >commands.h
+$(o)cf-lex.c: $(s)cf-lex.l
+	$(FLEX) $(FLEX_DEBUG) -s -B -8 -Pcf_ -o$@ $<
 
-cf-lex.c: cf-lex.l
-	$(FLEX) $(FLEX_DEBUG) -s -B -8 -ocf-lex.c -Pcf_ cf-lex.l
+$(o)cf-lex.o: $(o)cf-parse.tab.h $(o)keywords.h
 
-depend: keywords.h commands.h cf-parse.tab.c cf-lex.c
+$(addprefix $(o), cf-parse.y keywords.h commands.h cf-parse.tab.h cf-parse.tab.c cf-lex.c): $(objdir)/.dir-stamp
+
+$(call clean,cf-parse.tab.h cf-parse.tab.c cf-parse.y keywords.h commands.h cf-lex.c cf-parse.output)

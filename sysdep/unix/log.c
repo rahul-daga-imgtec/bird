@@ -26,7 +26,7 @@
 #include "nest/mrtdump.h"
 #include "lib/string.h"
 #include "lib/lists.h"
-#include "lib/unix.h"
+#include "sysdep/unix/unix.h"
 
 static FILE *dbgf;
 static list *current_log_list;
@@ -89,6 +89,7 @@ static char *class_names[] = {
 /**
  * log_commit - commit a log message
  * @class: message class information (%L_DEBUG to %L_BUG, see |lib/birdlib.h|)
+ * @buf: message to write
  *
  * This function writes a message prepared in the log buffer to the
  * log file (as specified in the configuration). The log buffer is

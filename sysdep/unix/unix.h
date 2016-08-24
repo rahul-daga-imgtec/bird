@@ -91,14 +91,16 @@ int sockaddr_read(sockaddr *sa, int af, ip_addr *a, struct iface **ifa, uint *po
 #define SUN_LEN(ptr) ((size_t) (((struct sockaddr_un *) 0)->sun_path) + strlen ((ptr)->sun_path))
 #endif
 
+extern volatile int async_config_flag;
+extern volatile int async_dump_flag;
+extern volatile int async_shutdown_flag;
+
 void io_init(void);
 void io_loop(void);
 void io_log_dump(void);
 int sk_open_unix(struct birdsock *s, char *name);
 void *tracked_fopen(struct pool *, char *name, char *mode);
 void test_old_bird(char *path);
-
-extern const int fam_to_af[];
 
 /* krt.c bits */
 

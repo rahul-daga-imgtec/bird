@@ -17,7 +17,7 @@
  *  if possible.
  */
 
-#include "lib/endian.h"
+#include "sysdep/unix/endian.h"
 #include "lib/string.h"
 #include <netinet/in.h>
 

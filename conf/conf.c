@@ -50,6 +50,7 @@
 #include "nest/protocol.h"
 #include "nest/iface.h"
 #include "lib/event.h"
+#include "sysdep/unix/timer.h"
 #include "conf/conf.h"
 
 

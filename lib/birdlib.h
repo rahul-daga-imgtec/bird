@@ -9,10 +9,10 @@
 #ifndef _BIRD_BIRDLIB_H_
 #define _BIRD_BIRDLIB_H_
 
-#include "timer.h"
-#include "alloca.h"
-#include "lib/null.h"
-#include "sysdep/config.h"
+#include "sysdep/unix/timer.h"
+#include "lib/alloca.h"
+//#include "lib/null.h"		// XXX
+//#include "sysdep/config.h"	// XXX
 
 /* Ugly structure offset handling macros */
 
@@ -62,6 +62,7 @@ static inline int u64_cmp(u64 i1, u64 i2)
 
 #define NORET __attribute__((noreturn))
 #define UNUSED __attribute__((unused))
+#define PACKED __attribute__((packed))
 
 
 /* Microsecond time */

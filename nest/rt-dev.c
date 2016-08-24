@@ -55,27 +55,21 @@ dev_ifa_notify(struct proto *P, uint flags, struct ifa *ad)
 
   if (flags & IF_CHANGE_DOWN)
     {
-      net *n;
-
       DBG("dev_if_notify: %s:%I going down\n", ad->iface->name, ad->ip);
-      n = net_find(c->table, &ad->prefix);
-      if (!n)
-	{
-	  DBG("dev_if_notify: device shutdown: prefix not found\n");
-	  return;
-	}
 
       /* Use iface ID as local source ID */
       struct rte_src *src = rt_get_source(P, ad->iface->index);
-      rte_update2(c, n, NULL, src);
+      rte_update2(c, &ad->prefix, NULL, src);
     }
   else if (flags & IF_CHANGE_UP)
     {
       rta *a;
-      net *n;
       rte *e;
 
       DBG("dev_if_notify: %s:%I going up\n", ad->iface->name, ad->ip);
+
+      if (cf->check_link && !(ad->iface->flags & IF_LINK_UP))
+	return;
 
       /* Use iface ID as local source ID */
       struct rte_src *src = rt_get_source(P, ad->iface->index);
@@ -90,13 +84,30 @@ dev_ifa_notify(struct proto *P, uint flags, struct ifa *ad)
       };
 
       a = rta_lookup(&a0);
-      n = net_get(c->table, &ad->prefix);
       e = rte_get_temp(a);
-      e->net = n;
       e->pflags = 0;
-      rte_update2(c, n, e, src);
+      rte_update2(c, &ad->prefix, e, src);
     }
 }
+
+static void
+dev_if_notify(struct proto *p, uint c, struct iface *iface)
+{
+  struct rt_dev_config *cf = (void *) p->cf;
+
+  if (c & (IF_CHANGE_UP | IF_CHANGE_DOWN))
+    return;
+
+  if ((c & IF_CHANGE_LINK) && cf->check_link)
+  {
+    uint ac = (iface->flags & IF_LINK_UP) ? IF_CHANGE_UP : IF_CHANGE_DOWN;
+
+    struct ifa *a;
+    WALK_LIST(a, iface->addrs)
+      dev_ifa_notify(p, ac, a);
+  }
+}
+
 
 static struct proto *
 dev_init(struct proto_config *CF)
@@ -108,6 +119,7 @@ dev_init(struct proto_config *CF)
   proto_configure_channel(P, &p->ip4_channel, proto_cf_find_channel(CF, NET_IP4));
   proto_configure_channel(P, &p->ip6_channel, proto_cf_find_channel(CF, NET_IP6));
 
+  P->if_notify = dev_if_notify;
   P->ifa_notify = dev_ifa_notify;
 
   return P;
@@ -120,7 +132,8 @@ dev_reconfigure(struct proto *P, struct proto_config *CF)
   struct rt_dev_config *o = (void *) P->cf;
   struct rt_dev_config *n = (void *) CF;
 
-  if (!iface_patts_equal(&o->iface_list, &n->iface_list, NULL))
+  if (!iface_patts_equal(&o->iface_list, &n->iface_list, NULL) ||
+      (o->check_link != n->check_link))
     return 0;
 
   return
@@ -142,6 +155,8 @@ dev_copy_config(struct proto_config *dest, struct proto_config *src)
    * old nodes cannot be modified (although they contain internal lists).
    */
   cfg_copy_list(&d->iface_list, &s->iface_list, sizeof(struct iface_patt));
+
+  d->check_link = s->check_link;
 }
 
 struct protocol proto_device = {

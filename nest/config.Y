@@ -357,6 +357,7 @@ dev_proto:
  | dev_proto proto_item ';'
  | dev_proto proto_channel ';'
  | dev_proto dev_iface_patt ';'
+ | dev_proto CHECK LINK bool ';' { DIRECT_CFG->check_link = $4; }
  ;
 
 dev_iface_init:
@@ -447,13 +448,11 @@ password_item_begin:
 ;
 
 password_item_params:
-   /* empty */ { } 
+   /* empty */ { }
  | GENERATE FROM datetime ';' password_item_params { this_p_item->genfrom = $3; }
  | GENERATE TO datetime ';' password_item_params { this_p_item->gento = $3; }
- | GENERATE FROM datetime TO datetime ';' password_item_params { this_p_item->genfrom = $3; this_p_item->gento = $5; }
  | ACCEPT FROM datetime ';' password_item_params { this_p_item->accfrom = $3; }
  | ACCEPT TO datetime ';' password_item_params { this_p_item->accto = $3; }
- | ACCEPT FROM datetime TO datetime ';' password_item_params { this_p_item->accfrom = $3; this_p_item->accto = $5; }
  | ID expr ';' password_item_params { this_p_item->id = $2; if ($2 <= 0) cf_error("Password ID has to be greated than zero."); }
  ;
 

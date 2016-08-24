@@ -12,7 +12,7 @@
 #include "sysdep/config.h"
 #include "lib/ip.h"
 #include "lib/resource.h"
-#include "lib/timer.h"
+#include "sysdep/unix/timer.h"
 
 
 /* Configuration structure */
