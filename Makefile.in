@@ -66,8 +66,8 @@ cf-local = $(conf-y-targets): $(s)config.Y
 src-o-files = $(patsubst %.c,$(o)%.o,$(src))
 tests-target-files = $(patsubst %.c,$(o)%,$(tests_src))
 
-all-daemon = $(exedir)/bird: $(obj)
-all-client = $(exedir)/birdc $(exedir)/birdcl: $(obj)
+all-daemon = $(daemon): $(obj)
+all-client = $(client): $(obj)
 
 s = $(dir $(lastword $(MAKEFILE_LIST)))
 ifeq ($(srcdir),.)
