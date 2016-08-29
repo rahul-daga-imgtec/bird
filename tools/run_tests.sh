@@ -69,4 +69,7 @@ echo "    Failure: $num_fail_tests"
 echo "    Build-Failure: $num_build_fail_tests"
 echo ""
 
-exit $((num_fail_tests+num_build_fail_tests))
+if [ "$((num_fail_tests+num_build_fail_tests))" -ne 0 ] ; then
+	exit 1;
+fi
+exit 0;
