@@ -84,8 +84,7 @@ test_config_file(const void *filename_void)
   size_t fn_size = strlen((const char *) filename_void) + 1;
   char *filename = alloca(fn_size);
   strncpy(filename, filename_void, fn_size);
-  bt_debug("Testing configuration %sd\n", filename);
-  config_name = filename;
+  bt_debug("Testing configuration %s\n", filename);
 
   char *cfg_str = load_file(filename);
   struct config *cfg = bt_config_parse(cfg_str);
