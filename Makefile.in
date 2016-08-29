@@ -58,12 +58,13 @@ daemon: $(daemon)
 cli: $(client)
 
 # Include directories
-dirs := client conf doc filter lib nest $(addprefix proto/,$(protocols)) @sysdep_dirs@
+dirs := client conf doc filter lib nest test $(addprefix proto/,$(protocols)) @sysdep_dirs@
 
 conf-y-targets := $(addprefix $(objdir)/conf/,cf-parse.y keywords.h commands.h)
 cf-local = $(conf-y-targets): $(s)config.Y
 
 src-o-files = $(patsubst %.c,$(o)%.o,$(src))
+tests-target-files = $(patsubst %.c,$(o)%,$(tests_src))
 
 all-daemon = $(exedir)/bird: $(obj)
 all-client = $(exedir)/birdc $(exedir)/birdcl: $(obj)
@@ -108,6 +109,20 @@ $(objdir)/sysdep/paths.h: Makefile
 	echo >>$@ "#define PATH_CONFIG_FILE \"@CONFIG_FILE@\""
 	echo >>$@ "#define PATH_CONTROL_SOCKET \"@CONTROL_SOCKET@\""
 	if test -n "@iproutedir@" ; then echo >>$@ "#define PATH_IPROUTE_DIR \"@iproutedir@\"" ; fi
+
+# Unit tests rules
+
+define unit_test_template =
+ $(1): $(1).o $(filter-out obj/sysdep/unix/main.o,$(tests_objs))
+	$(E)echo LD $(LDFLAGS) -o $$@ $$^ $(LIBS)
+	$(Q)$(CC) $(LDFLAGS) -o $$@ $$^ $(LIBS)
+endef
+
+$(foreach i,$(tests_targets),$(eval $(call unit_test_template,$(i))))
+
+check: $(tests_targets)
+	$(E)echo tools/run_tests.sh \"$(objdir)\" \"$(srcdir)\"
+	$(Q)tools/run_tests.sh "$(objdir)" "$(srcdir)"
 
 # Finally include the computed dependencies
 
