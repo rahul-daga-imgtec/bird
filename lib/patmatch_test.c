@@ -7,6 +7,8 @@
  */
 
 #include "test/birdtest.h"
+
+#include "nest/bird.h"
 #include "lib/string.h"
 
 #define MATCH		1

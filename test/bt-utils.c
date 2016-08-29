@@ -15,8 +15,8 @@
 #include "nest/route.h"
 #include "nest/protocol.h"
 
-#include "lib/unix.h"
-#include "lib/krt.h"
+#include "sysdep/unix/unix.h"
+#include "sysdep/unix/krt.h"
 
 #include "nest/iface.h"
 #include "nest/locks.h"

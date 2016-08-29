@@ -11,7 +11,7 @@
 #include "test/birdtest.h"
 #include "sysdep/config.h"
 #include "lib/sha1.h"
-#include "lib/sha1.c" /* REMOVE ME */
+
 
 static void
 get_sha1(const char *str, char (*out_hash)[SHA1_HEX_SIZE])

@@ -17,7 +17,6 @@
 #include "test/bt-utils.h"
 
 #include "filter/filter.h"
-#include "lib/main_helper.h"
 #include "conf/conf.h"
 
 static int

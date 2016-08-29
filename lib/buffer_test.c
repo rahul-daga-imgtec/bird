@@ -9,8 +9,7 @@
 #include <stdlib.h>
 
 #include "test/birdtest.h"
-#include "sysdep/config.h"
-#include "lib/resource.h"
+
 #include "lib/buffer.h"
 
 #define MAX_NUM 33

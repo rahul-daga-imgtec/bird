@@ -9,8 +9,7 @@
 #include <stdio.h>
 
 #include "test/birdtest.h"
-#include "sysdep/config.h"
-#include "lib/null.h"
+
 #include "lib/checksum.h"
 
 #define MAX_NUM 10000

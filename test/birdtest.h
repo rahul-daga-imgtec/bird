@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include "nest/bird.h"
 
 extern int bt_result;
 extern int bt_suite_result;

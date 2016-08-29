@@ -26,7 +26,7 @@
 
 #define _BIRD_LISTS_C_
 
-#include "lib/null.h"
+#include "nest/bird.h"
 #include "lib/lists.h"
 
 /**

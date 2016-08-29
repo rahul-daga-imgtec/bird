@@ -9,7 +9,7 @@
 #undef LOCAL_DEBUG
 
 #include "test/birdtest.h"
-#include "nest/bird.h"
+
 #include "lib/hash.h"
 
 struct test_node {

@@ -11,8 +11,6 @@
 
 #include "sysdep/unix/timer.h"
 #include "lib/alloca.h"
-//#include "lib/null.h"		// XXX
-//#include "sysdep/config.h"	// XXX
 
 /* Ugly structure offset handling macros */
 
