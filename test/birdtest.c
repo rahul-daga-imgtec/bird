@@ -332,3 +332,30 @@ bt_exit_value(void)
 {
   return bt_result == BT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+/*
+ * Mock-ups of all necessary public functions in main.c
+ */
+
+char *bird_name;
+void async_config(void) {}
+void async_dump(void) {}
+void async_shutdown(void) {}
+void cmd_check_config(char *name) {}
+void cmd_reconfig(char *name, int type, int timeout) {}
+void cmd_reconfig_confirm(void) {}
+void cmd_reconfig_undo(void) {}
+void cmd_shutdown(void) {}
+void cmd_reconfig_undo_notify(void) {}
+
+#include "nest/bird.h"
+#include "lib/net.h"
+#include "conf/conf.h"
+void sysdep_preconfig(struct config *c) {}
+int sysdep_commit(struct config *new, struct config *old UNUSED) { return 0; }
+void sysdep_shutdown_done(void) {}
+
+#include "nest/cli.h"
+int cli_get_command(cli *c) { return 0; }
+void cli_write_trigger(cli *c) {}
+cli *cmd_reconfig_stored_cli;
