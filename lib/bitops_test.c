@@ -7,8 +7,11 @@
  */
 
 #include "test/birdtest.h"
+
+/* naive_pow() */
 #include "test/bt-utils.h"
-#include "bitops.h"
+
+#include "lib/bitops.h"
 
 #define MAX_NUM 1000
 #define CHECK_BIT(var,pos) ((var) & (u32)(1<<(pos)))
