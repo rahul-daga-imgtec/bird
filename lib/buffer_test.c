@@ -16,7 +16,7 @@
 
 typedef BUFFER(int) buffer_int;
 static int expected[MAX_NUM];
-static buffer_int buffer;
+static buffer_int buf;
 static struct pool *buffer_pool;
 
 static void
@@ -43,7 +43,7 @@ init_buffer(void)
 {
   resource_init();
   buffer_pool = &root_pool;
-  BUFFER_INIT(buffer, buffer_pool, MAX_NUM);
+  BUFFER_INIT(buf, buffer_pool, MAX_NUM);
 }
 
 static int
@@ -56,6 +56,7 @@ is_buffer_as_expected(buffer_int *b)
     bt_assert(b->data[i] == expected[i]);
   return 1;
 }
+
 static int
 t_buffer_push(void)
 {
@@ -65,8 +66,8 @@ t_buffer_push(void)
   fill_expected_array();
 
   for (i = 0; i < MAX_NUM; i++)
-    BUFFER_PUSH(buffer) = expected[i];
-  is_buffer_as_expected(&buffer);
+    BUFFER_PUSH(buf) = expected[i];
+  is_buffer_as_expected(&buf);
 
   return BT_SUCCESS;
 }
@@ -81,20 +82,20 @@ t_buffer_pop(void)
 
   /* POP a half of elements */
   for (i = 0; i < MAX_NUM; i++)
-    BUFFER_PUSH(buffer) = expected[i];
+    BUFFER_PUSH(buf) = expected[i];
   for (i = MAX_NUM-1; i >= MAX_NUM/2; i--)
-    BUFFER_POP(buffer);
+    BUFFER_POP(buf);
   for (i = MAX_NUM/2; i < MAX_NUM; i++)
-    BUFFER_PUSH(buffer) = expected[i] = bt_random();
-  is_buffer_as_expected(&buffer);
+    BUFFER_PUSH(buf) = expected[i] = bt_random();
+  is_buffer_as_expected(&buf);
 
   /* POP all of elements */
   for (i = MAX_NUM-1; i >= 0; i--)
-    BUFFER_POP(buffer);
-  bt_assert(buffer.used == 0);
+    BUFFER_POP(buf);
+  bt_assert(buf.used == 0);
   for (i = 0; i < MAX_NUM; i++)
-    BUFFER_PUSH(buffer) = expected[i];
-  is_buffer_as_expected(&buffer);
+    BUFFER_PUSH(buf) = expected[i];
+  is_buffer_as_expected(&buf);
 
   return BT_SUCCESS;
 }
@@ -105,13 +106,13 @@ t_buffer_resize(void)
   int i;
 
   init_buffer();
-  BUFFER_INIT(buffer, buffer_pool, 0);
+  BUFFER_INIT(buf, buffer_pool, 0);
   fill_expected_array();
 
   for (i = 0; i < MAX_NUM; i++)
-    BUFFER_PUSH(buffer) = expected[i];
-  is_buffer_as_expected(&buffer);
-  bt_assert(buffer.size >= MAX_NUM);
+    BUFFER_PUSH(buf) = expected[i];
+  is_buffer_as_expected(&buf);
+  bt_assert(buf.size >= MAX_NUM);
 
   return BT_SUCCESS;
 }
@@ -124,10 +125,10 @@ t_buffer_flush(void)
   init_buffer();
   fill_expected_array();
   for (i = 0; i < MAX_NUM; i++)
-    BUFFER_PUSH(buffer) = expected[i];
+    BUFFER_PUSH(buf) = expected[i];
 
-  BUFFER_FLUSH(buffer);
-  bt_assert(buffer.used == 0);
+  BUFFER_FLUSH(buf);
+  bt_assert(buf.used == 0);
 
   return BT_SUCCESS;
 }
