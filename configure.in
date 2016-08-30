@@ -200,7 +200,12 @@ esac
 
 AC_CHECK_HEADER(syslog.h, [AC_DEFINE(HAVE_SYSLOG)])
 AC_CHECK_HEADER(alloca.h, [AC_DEFINE(HAVE_ALLOCA_H)])
-AC_CHECK_HEADER(execinfo.h, [AC_DEFINE(HAVE_EXECINFO_H)])
+AC_MSG_CHECKING(whether execinfo.h includes backtrace() and backtrace_symbols() functions)
+AC_TRY_COMPILE([#include <execinfo.h>],
+  [void *b[10]; backtrace_symbols(b, backtrace(b, 10));],
+  [AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_EXECINFO_H)],
+  AC_MSG_RESULT(no))
 AC_MSG_CHECKING(whether 'struct sockaddr' has sa_len)
 AC_TRY_COMPILE([#include <sys/types.h>
   #include <sys/socket.h>
