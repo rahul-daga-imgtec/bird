@@ -32,7 +32,6 @@ t_simple(void)
   BSPRINTF(1, "@", buf, "@", 64);
   BSPRINTF(1, "\xff", buf, "%c", 0xff);
 
-  BSPRINTF(7, "Success", buf, "%m");
   errno = 5;
   BSPRINTF(18, "Input/output error", buf, "%m");
   errno = 0;
