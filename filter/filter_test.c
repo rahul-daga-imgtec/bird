@@ -90,7 +90,7 @@ main(int argc, char *argv[])
   bt_test_suite(t_simple, "Simple filter testing");
   bt_test_suite_arg_(1);
   bt_test_suite_arg_(2);
-  bt_test_suite_arg_(3);
+//  bt_test_suite_arg_(3);	/* TODO: uncommnet with BGP integration version */
   bt_test_suite_arg_(4);
 
   return bt_exit_value();
