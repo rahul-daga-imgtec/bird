@@ -83,7 +83,7 @@ int undo_available;			/* Undo was not requested from last reconfiguration */
  * further use. Returns a pointer to the structure.
  */
 struct config *
-config_alloc(byte *name)
+config_alloc(const char *name)
 {
   pool *p = rp_new(&root_pool, "Config");
   linpool *l = lp_new(p, 4080);
@@ -527,7 +527,7 @@ cf_error(const char *msg, ...)
  * and we want to preserve it for further use.
  */
 char *
-cfg_strdup(char *c)
+cfg_strdup(const char *c)
 {
   int l = strlen(c) + 1;
   char *z = cfg_allocu(l);
