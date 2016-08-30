@@ -78,7 +78,8 @@ get_random_ip6_prefix(void)
 static void
 generate_random_ipv6_prefixes(list *prefixes)
 {
-  for (int i = 0; i < PREFIXES_NUM; i++)
+  int i;
+  for (i = 0; i < PREFIXES_NUM; i++)
   {
     struct f_prefix f = get_random_ip6_prefix();
 
