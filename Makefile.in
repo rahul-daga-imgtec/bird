@@ -112,17 +112,16 @@ $(objdir)/sysdep/paths.h: Makefile
 
 # Unit tests rules
 
-define unit_test_template =
- $(1): $(1).o $(filter-out obj/sysdep/unix/main.o,$(tests_objs))
-	$(E)echo LD $(LDFLAGS) -o $$@ $$^ $(LIBS)
-	$(Q)$(CC) $(LDFLAGS) -o $$@ $$^ $(LIBS)
-endef
+tests_targets_ok = $(addsuffix .ok,$(tests_targets))
 
-$(foreach i,$(tests_targets),$(eval $(call unit_test_template,$(i))))
+$(tests_targets): %: %.o $(filter-out obj/sysdep/unix/main.o,$(tests_objs))
+	$(E)echo LD $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-check: $(tests_targets)
-	$(E)echo tools/run_tests.sh \"$(objdir)\" \"$(srcdir)\"
-	$(Q)tools/run_tests.sh "$(objdir)" "$(srcdir)"
+$(tests_targets_ok): %.ok: % $(tests_targets)
+	$(Q)-$* && touch $*.ok || $* -vv
+
+check: $(tests_targets_ok)
 
 # Finally include the computed dependencies
 

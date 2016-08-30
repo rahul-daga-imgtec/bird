@@ -123,6 +123,9 @@ dump_stack(void)
   char **lines;
   int levels, j;
 
+  if (!bt_verbose)
+    return;
+
   levels = backtrace(buf, BACKTRACE_MAX_LINES);
   bt_log("backtrace() returned %d addresses", levels);
 
@@ -181,8 +184,9 @@ bt_log_result(int result, const char *fmt, va_list argptr)
   char msg_buf[BT_BUFFER_SIZE];
   char *pos;
 
-  snprintf(msg_buf, sizeof(msg_buf), "%s: %s%s",
+  snprintf(msg_buf, sizeof(msg_buf), "%s%s %s%s",
 	   bt_filename,
+	   bt_test_id ? ": " : "",
 	   bt_test_id ? bt_test_id : "",
 	   (bt_test_id && fmt) ? ": " : "");
   pos = msg_buf + strlen(msg_buf);
@@ -201,6 +205,23 @@ bt_log_result(int result, const char *fmt, va_list argptr)
     result_str = BT_PROMPT_FAIL;
 
   printf(fmt_buf, msg_buf, result_str);
+}
+
+/**
+ * bt_log_overall_result - pretty print of suite case result
+ * @result: BT_SUCCESS or BT_FAILURE
+ * @fmt: a description message (could be long, over more lines)
+ * ...: variable argument list
+ *
+ * This function is used for pretty printing of test suite case result.
+ */
+static void
+bt_log_overall_result(int result, const char *fmt, ...)
+{
+  va_list argptr;
+  va_start(argptr, fmt);
+  bt_log_result(result, fmt, argptr);
+  va_end(argptr);
 }
 
 /**
@@ -330,6 +351,10 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
 int
 bt_exit_value(void)
 {
+  if (list_tests)
+    return EXIT_SUCCESS;
+
+  bt_log_overall_result(bt_result, "");
   return bt_result == BT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
