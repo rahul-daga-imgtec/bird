@@ -58,24 +58,6 @@ t_simple(void)
 #undef TESTING_FILTER_NAME
 #undef TESTING_FILTER_BODY
 
-static char *
-load_file(const char *filename)
-{
-  FILE *f = fopen(filename, "rb");
-  bt_assert_msg(f != NULL, "Open file %s", filename);
-
-  fseek(f, 0, SEEK_END);
-  long pos = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *file_body = mb_allocz(&root_pool, pos+1);
-  bt_assert_msg(file_body != NULL, "Memory allocation for file %s", filename);
-  bt_assert_msg(fread(file_body, pos, 1, f) == 1, "Reading from file %s", filename);
-  fclose(f);
-
-  return file_body;
-}
-
 static int
 test_config_file(const void *filename_void)
 {
@@ -86,11 +68,7 @@ test_config_file(const void *filename_void)
   strncpy(filename, filename_void, fn_size);
   bt_debug("Testing configuration %s\n", filename);
 
-  char *cfg_str = load_file(filename);
-  struct config *cfg = bt_config_parse(cfg_str);
-  mb_free(cfg_str);
-
-  return cfg ? BT_SUCCESS : BT_FAILURE;
+  return bt_config_file_parse(filename) ? BT_SUCCESS : BT_FAILURE;
 }
 
 static int t_config_file1(const void *fname) { return test_config_file(fname); }

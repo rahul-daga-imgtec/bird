@@ -96,11 +96,29 @@ bt_show_cfg_error(const char *str, const struct config *cfg)
   bt_debug("\n");
 }
 
-struct config *
-bt_config_parse(const char *cfg_str)
+static char *
+bt_load_file(const char *filename)
+{
+  FILE *f = fopen(filename, "rb");
+  bt_assert_msg(f != NULL, "Open file %s", filename);
+
+  fseek(f, 0, SEEK_END);
+  long pos = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char *file_body = mb_allocz(&root_pool, pos+1);
+  bt_assert_msg(file_body != NULL, "Memory allocation for file %s", filename);
+  bt_assert_msg(fread(file_body, pos, 1, f) == 1, "Reading from file %s", filename);
+  fclose(f);
+
+  return file_body;
+}
+
+static struct config *
+bt_config_parse__(const char *cfg_str, const char *filepath)
 {
   bt_debug_with_line_nums(cfg_str);
-  struct config *cfg = config_alloc("");
+  struct config *cfg = config_alloc(filepath ? filepath : "");
   bt_config_parse_pos = cfg_str;
   bt_config_parse_remain_len = strlen(cfg_str);
   cf_read_hook = cf_txt_read;
@@ -121,6 +139,23 @@ bt_config_parse(const char *cfg_str)
   }
 
   return NULL; /* Error in parsing */
+}
+
+struct config *
+bt_config_parse(const char *cfg)
+{
+  return bt_config_parse__(cfg, NULL);
+}
+
+struct config *
+bt_config_file_parse(const char *filepath)
+{
+  char *content = bt_load_file(filepath);
+
+  if (!content)
+    return NULL;
+
+  return bt_config_parse__(content, filepath);
 }
 
 uint

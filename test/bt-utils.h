@@ -27,6 +27,7 @@
 uint naive_pow(uint base, uint power);
 
 void bt_bird_init(void);
-struct config *bt_config_parse(const char *str_cfg);
+struct config *bt_config_parse(const char *cfg);
+struct config *bt_config_file_parse(const char *filepath);
 
 #endif /* _BIRDTEST_UTILS_H_ */
