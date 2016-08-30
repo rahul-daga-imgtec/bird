@@ -41,7 +41,7 @@ t_simple(void)
 
   BSPRINTF(11, "TeSt%StRiNg", buf, "%s", "TeSt%StRiNg");
 
-  BSPRINTF(16, "00000fee1a15600d", buf, "%p", (void *) 0xfee1a15600d);
+  BSPRINTF(8, "1a15600d", buf, "%p", (void *) 0x1a15600d);
 
   long ln = 0;
   BSPRINTF(10, "TeStStRiNg", buf, "TeStS%lntRiNg", &ln);

@@ -117,7 +117,7 @@ t_log2(void)
     check_log2(i);
 
   for (i = 1; i < MAX_NUM; i++)
-    check_log2(bt_random() % 0xffff);
+    check_log2(((u32) bt_random()) % 0x0fffffff);
 
   return BT_SUCCESS;
 }
