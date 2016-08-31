@@ -118,29 +118,30 @@ bt_init(int argc, char *argv[])
 }
 
 static void
-dump_stack(void)
+bt_dump_backtrace(void)
 {
 #ifdef HAVE_EXECINFO_H
   void *buf[BACKTRACE_MAX_LINES];
-  char **lines;
-  int levels, j;
+  char **pp_backtrace;
+  int lines, j;
 
   if (!bt_verbose)
     return;
 
-  levels = backtrace(buf, BACKTRACE_MAX_LINES);
-  bt_log("backtrace() returned %d addresses", levels);
+  lines = backtrace(buf, BACKTRACE_MAX_LINES);
+  bt_log("backtrace() returned %d addresses", lines);
 
-  lines = backtrace_symbols(buf, levels);
-  if (lines == NULL) {
+  pp_backtrace = backtrace_symbols(buf, lines);
+  if (pp_backtrace == NULL)
+  {
     perror("backtrace_symbols");
     exit(EXIT_FAILURE);
   }
 
-  for (j = 0; j < levels; j++)
-    bt_log("%s", lines[j]);
+  for (j = 0; j < lines; j++)
+    bt_log("%s", pp_backtrace[j]);
 
-  free(lines);
+  free(pp_backtrace);
 #endif /* HAVE_EXECINFO_H */
 }
 
@@ -333,7 +334,7 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
       else if (sn == SIGSEGV)
       {
 	bt_log("Segmentation fault");
-	dump_stack();
+	bt_dump_backtrace();
       }
       else if (sn != SIGABRT)
 	bt_log("Signal %d received", sn);
