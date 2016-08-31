@@ -187,7 +187,7 @@ bt_log_result(int result, const char *fmt, va_list argptr)
   char msg_buf[BT_BUFFER_SIZE];
   char *pos;
 
-  snprintf(msg_buf, sizeof(msg_buf), "%s%s %s%s",
+  snprintf(msg_buf, sizeof(msg_buf), "%s%s%s%s",
 	   bt_filename,
 	   bt_test_id ? ": " : "",
 	   bt_test_id ? bt_test_id : "",
@@ -340,7 +340,7 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
 	bt_log("Signal %d received", sn);
     }
 
-    if (WCOREDUMP(s))
+    if (WCOREDUMP(s) && bt_verbose)
       bt_log("Core dumped");
   }
 
