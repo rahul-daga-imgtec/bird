@@ -22,7 +22,7 @@ INSTALL_DATA=@INSTALL_DATA@
 
 client=$(addprefix $(exedir)/,@CLIENT@)
 daemon=$(exedir)/bird
-protocols  = @protocols@
+protocols=@protocols@
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
@@ -114,7 +114,7 @@ $(objdir)/sysdep/paths.h: Makefile
 
 tests_targets_ok = $(addsuffix .ok,$(tests_targets))
 
-$(tests_targets): %: %.o $(filter-out obj/sysdep/unix/main.o,$(tests_objs))
+$(tests_targets): %: %.o $(tests_objs)
 	$(E)echo LD $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
