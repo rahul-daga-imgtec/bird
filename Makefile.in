@@ -119,7 +119,7 @@ $(tests_targets): %: %.o $(tests_objs)
 	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 $(tests_targets_ok): %.ok: % $(tests_targets)
-	$(Q)-$* && touch $*.ok || $* -vv
+	$(Q)$* 2>/dev/null && touch $*.ok || $* -vv 2>/dev/null
 
 check: $(tests_targets_ok)
 test: testsclean check
