@@ -51,7 +51,7 @@ endif
 # Meta rules
 cleangoals := clean distclean testsclean
 docgoals := docs userdocs progdocs
-.PHONY: all daemon cli $(cleangoals) $(docgoals) tags
+.PHONY: all daemon cli $(cleangoals) $(docgoals) tags check test tests tests_run
 all: daemon cli
 
 daemon: $(daemon)
@@ -118,11 +118,13 @@ $(tests_targets): %: %.o $(tests_objs)
 	$(E)echo LD $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(Q)$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-$(tests_targets_ok): %.ok: % $(tests_targets)
-	$(Q)$* 2>/dev/null && touch $*.ok || $* -vv 2>/dev/null
+$(tests_targets_ok): %.ok: %
+	$(Q)$* 2>/dev/null && touch $*.ok
 
-check: $(tests_targets_ok)
 test: testsclean check
+check: tests tests_run
+tests: $(tests_targets)
+tests_run: $(tests_targets_ok)
 
 # Finally include the computed dependencies
 
