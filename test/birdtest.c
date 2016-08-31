@@ -238,7 +238,7 @@ bt_log_overall_result(int result, const char *fmt, ...)
 void
 bt_log_suite_result(int result, const char *fmt, ...)
 {
-  if(bt_verbose >= BT_VERBOSE_SUITE)
+  if(bt_verbose >= BT_VERBOSE_SUITE || result == BT_FAILURE)
   {
     va_list argptr;
     va_start(argptr, fmt);
