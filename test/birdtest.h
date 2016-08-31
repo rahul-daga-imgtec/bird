@@ -50,7 +50,9 @@ void bt_log_suite_case_result(int result, const char *fmt, ...);
 #define BT_PROMPT_RED 			"\e[1;31m"
 #define BT_PROMPT_NORMAL		"\e[0m"
 #define BT_PROMPT_OK			" [" BT_PROMPT_GREEN " OK " BT_PROMPT_NORMAL "] "
+#define BT_PROMPT_OK_NO_COLOR		" ["                 " OK "                  "] "
 #define BT_PROMPT_FAIL			" [" BT_PROMPT_RED   "FAIL" BT_PROMPT_NORMAL "] "
+#define BT_PROMPT_FAIL_NO_COLOR		" ["                 "FAIL"                  "] "
 #define BT_PROMPT_OK_FAIL_STRLEN	8	/* strlen ' [FAIL] ' */
 
 #define bt_test_suite(fn, dsc, ...) \

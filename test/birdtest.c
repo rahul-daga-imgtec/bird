@@ -30,6 +30,7 @@ static int list_tests;
 static int do_core;
 static int no_fork;
 static int no_timeout;
+static int is_terminal;		/* Whether stdout is a live terminal or pipe redirect */
 
 uint bt_verbose;
 const char *bt_filename;
@@ -60,6 +61,7 @@ bt_init(int argc, char *argv[])
   bt_filename = argv[0];
   bt_result = BT_SUCCESS;
   bt_test_id = NULL;
+  is_terminal = isatty(fileno(stdout));
 
   while ((c = getopt(argc, argv, "lcftv")) >= 0)
     switch (c)
@@ -200,9 +202,9 @@ bt_log_result(int result, const char *fmt, va_list argptr)
   uint offset = ll_offset + (strlen(msg_buf) / cols) * cols;
   snprintf(fmt_buf, sizeof(fmt_buf), "%%-%us%%s\n", offset);
 
-  const char *result_str = BT_PROMPT_OK;
+  const char *result_str = is_terminal ? BT_PROMPT_OK : BT_PROMPT_OK_NO_COLOR;
   if (result != BT_SUCCESS)
-    result_str = BT_PROMPT_FAIL;
+    result_str = is_terminal ? BT_PROMPT_FAIL : BT_PROMPT_FAIL_NO_COLOR;
 
   printf(fmt_buf, msg_buf, result_str);
 }
