@@ -17,7 +17,7 @@
 #include <sys/wait.h>
 
 #include "test/birdtest.h"
-#include "sysdep/autoconf.h"
+#include "lib/string.h"
 
 #ifdef HAVE_EXECINFO_H
 #include <execinfo.h>
@@ -38,6 +38,7 @@ const char *bt_test_id;
 
 int bt_result;			/* Overall program run result */
 int bt_suite_result;		/* One suit result */
+char bt_out_fmt_buf[1024];	/* Temporary memory buffer for output of testing function */
 
 long int
 bt_random(void)
@@ -359,6 +360,102 @@ bt_exit_value(void)
 
   bt_log_overall_result(bt_result, "");
   return bt_result == BT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+/**
+ * bt_assert_batch__ - test a batch of inputs/outputs tests
+ * @opts: includes all necessary data
+ *
+ * Should be called using macro bt_assert_batch().
+ * Returns BT_SUCCESS or BT_FAILURE.
+ */
+int
+bt_assert_batch__(struct bt_batch *opts)
+{
+  int i;
+  for (i = 0; i < opts->ndata; i++)
+  {
+    int bt_suit_case_result = opts->test_fn(opts->out_buf, opts->data[i].in, opts->data[i].out);
+
+    if (bt_suit_case_result == BT_FAILURE)
+      bt_suite_result = BT_FAILURE;
+
+    char b[BT_BUFFER_SIZE];
+    snprintf(b, sizeof(b), "%s(", opts->test_fn_name);
+
+    opts->in_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->data[i].in);
+    bt_sprintf_concat(b, ") gives ");
+    opts->out_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->out_buf);
+
+    if (bt_suit_case_result == BT_FAILURE)
+    {
+      bt_sprintf_concat(b, ", but expecting is ");
+      opts->out_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->data[i].out);;
+    }
+
+    bt_log_suite_case_result(bt_suit_case_result, "%s", b);
+  }
+
+  return bt_suite_result;
+}
+
+/**
+ * bt_fmt_str - formating string into output buffer
+ * @buf: buffer for write
+ * @size: empty size in @buf
+ * @data: null-byte terminated string
+ *
+ * This function can be used with bt_assert_batch() function.
+ * Input @data should be const char * string.
+ */
+void
+bt_fmt_str(char *buf, size_t size, const void *data)
+{
+  const byte *s = data;
+
+  snprintf(buf, size, "\"");
+  while (*s)
+  {
+    snprintf(buf+strlen(buf), size-strlen(buf), bt_is_char(*s) ? "%c" : "\\%03u", *s);
+    s++;
+  }
+  snprintf(buf+strlen(buf), size-strlen(buf), "\"");
+}
+
+/**
+ * bt_fmt_unsigned - formating unsigned int into output buffer
+ * @buf: buffer for write
+ * @size: empty size in @buf
+ * @data: unsigned number
+ *
+ * This function can be used with bt_assert_batch() function.
+ */
+void
+bt_fmt_unsigned(char *buf, size_t size, const void *data)
+{
+  const uint *n = data;
+  snprintf(buf, size, "0x%x (%u)", *n, *n);
+}
+
+/**
+ * bt_fmt_ipa - formating ip_addr into output buffer
+ * @buf: buffer for write
+ * @size: empty size in @buf
+ * @data: should be struct ip_addr *
+ *
+ * This function can be used with bt_assert_batch() function.
+ */
+void
+bt_fmt_ipa(char *buf, size_t size, const void *data)
+{
+  const ip_addr *ip = data;
+  bsnprintf(buf, size, "%I", *ip);
+}
+
+int
+bt_is_char(byte c)
+{
+  return (c >= (byte) 32 && c <= (byte) 126);
 }
 
 /*

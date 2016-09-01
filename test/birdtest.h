@@ -16,8 +16,10 @@
 
 #include "nest/bird.h"
 
+
 extern int bt_result;
 extern int bt_suite_result;
+extern char bt_out_fmt_buf[1024];
 
 extern uint bt_verbose;
 #define BT_VERBOSE_NO			0
@@ -118,7 +120,7 @@ void bt_log_suite_case_result(int result, const char *fmt, ...);
     }									\
   } while (0)
 
-/* Internal, please don't use it directly */
+/* Internal, please don't use it directly; TODO: move to birdtest.c */
 #define bt_sprintf_concat(s, format, ...) \
   snprintf(s + strlen(s), sizeof(s) - strlen(s), format, ##__VA_ARGS__)
 
@@ -224,5 +226,61 @@ void bt_log_suite_case_result(int result, const char *fmt, ...);
       bt_log_suite_case_result__(fn, in_out[i].in, in_out[i].out, fn_out, in_fmt, out_fmt, bt_suit_case_result); \
     }									\
   } while (0)
+
+struct bt_pair {
+  const void *in;
+  const void *out;
+};
+
+/* Data structure used by bt_assert_batch() function */
+struct bt_batch {
+  /* in_fmt / out_fmt - formating data
+   * @buf: buffer for write stringified @data
+   * @size: empty size in @buf
+   * @data: data for stringify
+   *
+   * There are some build-in functions, see bt_fmt_* functions */
+  void (*in_fmt)(char *buf, size_t size, const void *data);
+  void (*out_fmt)(char *buf, size_t size, const void *data);
+
+  /* Temporary output buffer */
+  void *out_buf;
+
+  /* test_fn - testing function
+   * @out: output data from tested function
+   * @in: data for input
+   * @expected_out: expected data from tested function
+   *
+   * Input arguments should not be stringified using in_fmt() or out_fmt()
+   * function already. This function should return only BT_SUCCESS or
+   * BT_FAILURE  */
+  int (*test_fn)(void *out, const void *in, const void *expected_out);
+
+  /* Name of testing function @test_fn */
+  const char *test_fn_name;
+
+  /* Number of items in data*/
+  int ndata;
+
+  /* Array of input and expected output pairs */
+  struct bt_pair *data;
+};
+
+void bt_fmt_str(char *buf, size_t size, const void *data);
+void bt_fmt_unsigned(char *buf, size_t size, const void *data);
+void bt_fmt_ipa(char *buf, size_t size, const void *data);
+int bt_assert_batch__(struct bt_batch *opts);
+int bt_is_char(byte c);
+
+#define bt_assert_batch(data__, fn__, in_fmt__, out_fmt__)		\
+  bt_assert_batch__(& (struct bt_batch) {				\
+    .data = data__,							\
+    .ndata = ARRAY_SIZE(data__),					\
+    .test_fn = fn__,							\
+    .test_fn_name = #fn__,						\
+    .in_fmt = in_fmt__,							\
+    .out_fmt = out_fmt__,						\
+    .out_buf = bt_out_fmt_buf,	/* Global memory for this usage */	\
+  })
 
 #endif /* _BIRDTEST_H_ */
