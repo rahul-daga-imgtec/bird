@@ -7,9 +7,7 @@
  */
 
 #include "test/birdtest.h"
-
-/* naive_pow() */
-#include "test/bt-utils.h"
+#include "test/bt-utils.h" /* naive_pow() */
 
 #include "lib/bitops.h"
 
@@ -91,7 +89,7 @@ check_log2(u32 n)
   u32 high = bt_naive_pow(2, log+1);
 
   bt_assert_msg(n >= low && n < high,
-		"Test u32_log2(%u) = %u, %u should be in the range <%u, %u)",
+		"u32_log2(%u) = %u, %u should be in the range <%u, %u)",
 		n, log, n, low, high);
 }
 
@@ -100,18 +98,8 @@ t_log2(void)
 {
   u32 i;
 
-  struct in_out_data_ {
-    u32 in;
-    u32 out;
-  } in_out_data[31];
-
   for (i = 0; i < 31; i++)
-  {
-    in_out_data[i].in  = bt_naive_pow(2, i+1);
-    in_out_data[i].out = i+1;
-  }
-
-  bt_assert_out_fn_in(u32_log2, in_out_data, "%u", "%u");
+    bt_assert(u32_log2(bt_naive_pow(2, i+1)) == i+1);
 
   for (i = 1; i < MAX_NUM; i++)
     check_log2(i);

@@ -1,5 +1,5 @@
 /*
- *	BIRD Library -- Fletcher-16 checksum Tests
+ *	BIRD Library -- Fletcher-16 Tests
  *
  *	(c) 2015 CZ.NIC z.s.p.o.
  *
@@ -8,11 +8,6 @@
 
 #include "test/birdtest.h"
 #include "lib/fletcher16.h"
-
-struct in {
-  u8 *data;
-  int count;
-};
 
 static u16
 straightforward_fletcher16_compute(const char *data)
@@ -23,7 +18,7 @@ straightforward_fletcher16_compute(const char *data)
   u16 sum2 = 0;
   int index;
 
-  for(index = 0; index < count; ++index)
+  for (index = 0; index < count; ++index)
   {
     sum1 = (sum1 + data[index]) % 255;
     sum2 = (sum2 + sum1) % 255;
@@ -47,122 +42,119 @@ straightforward_fletcher16_checksum(const char *data)
   return (c1 << 8) | c0;
 }
 
-static u16
-get_fletcher16_compute(const char *str)
+static int
+test_fletcher16(void *out_, const void *in_, const void *expected_out_)
 {
+  u16 *out = out_;
+  const char *in = in_;
+  const u16 *expected_out = expected_out_;
+
   struct fletcher16_context ctxt;
 
   fletcher16_init(&ctxt);
-  fletcher16_update(&ctxt, str, strlen(str));
-  u16 f;
-  put_u16(&f, fletcher16_compute(&ctxt));
-  return f;
+  fletcher16_update(&ctxt, in, strlen(in));
+  put_u16(out, fletcher16_compute(&ctxt));
+
+  return (*out == *expected_out) ? BT_SUCCESS : BT_FAILURE;
 }
 
-static u16
-get_fletcher16_checksum(const char *str)
+static int
+test_fletcher16_checksum(void *out_, const void *in_, const void *expected_out_)
 {
-  struct fletcher16_context ctxt;
+  u16 *out = out_;
+  const char *in = in_;
+  const u16 *expected_out = expected_out_;
 
-  int len = strlen(str);
+  struct fletcher16_context ctxt;
+  int len = strlen(in);
 
   fletcher16_init(&ctxt);
-  fletcher16_update(&ctxt, str, len);
-  u16 f;
-  put_u16(&f, fletcher16_final(&ctxt, len, len));
-  return f;
+  fletcher16_update(&ctxt, in, len);
+  put_u16(out, fletcher16_final(&ctxt, len, len));
+
+  return (*out == *expected_out) ? BT_SUCCESS : BT_FAILURE;
 }
 
 static int
 t_fletcher16_compute(void)
 {
-  struct in_out {
-    char *in;
-    u16 out;
-  } in_out[] = {
-      {
-	  .in  = "\001\002",
-	  .out = 0x0403,
-      },
-      {
-	  .in  = "",
-	  .out = straightforward_fletcher16_compute(""),
-      },
-      {
-	  .in  = "a",
-	  .out = straightforward_fletcher16_compute("a"),
-      },
-      {
-	  .in  = "abcd",
-	  .out = straightforward_fletcher16_compute("abcd"),
-      },
-      {
-	  .in  = "message digest",
-	  .out = straightforward_fletcher16_compute("message digest"),
-      },
-      {
-	  .in  = "abcdefghijklmnopqrstuvwxyz",
-	  .out = straightforward_fletcher16_compute("abcdefghijklmnopqrstuvwxyz"),
-      },
-      {
-	  .in  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-	  .out = straightforward_fletcher16_compute("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"),
-      },
-      {
-	  .in  = "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
-	  .out = straightforward_fletcher16_compute("12345678901234567890123456789012345678901234567890123456789012345678901234567890"),
-      },
+  struct bt_pair test_vectors[] = {
+    {
+      .in  = "\001\002",
+      .out = & (const u16) { 0x0403 },
+    },
+    {
+      .in  = "",
+      .out = & ((const u16) { straightforward_fletcher16_compute("") }),
+    },
+    {
+      .in  = "a",
+      .out = & ((const u16) { straightforward_fletcher16_compute("a") }),
+    },
+    {
+      .in  = "abcd",
+      .out = & ((const u16) { straightforward_fletcher16_compute("abcd") }),
+    },
+    {
+      .in  = "message digest",
+      .out = & ((const u16) { straightforward_fletcher16_compute("message digest") }),
+    },
+    {
+      .in  = "abcdefghijklmnopqrstuvwxyz",
+      .out = & ((const u16) { straightforward_fletcher16_compute("abcdefghijklmnopqrstuvwxyz") }),
+    },
+    {
+      .in  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+      .out = & ((const u16) { straightforward_fletcher16_compute("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") }),
+    },
+    {
+      .in  = "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+      .out = & ((const u16) { straightforward_fletcher16_compute("12345678901234567890123456789012345678901234567890123456789012345678901234567890") }),
+    },
   };
 
-  bt_assert_out_fn_in(get_fletcher16_compute, in_out, "'%s'", "0x%04X");
-
-  return BT_SUCCESS;
+  return bt_assert_batch(test_vectors, test_fletcher16, bt_fmt_str, bt_fmt_unsigned);
 }
 
 static int
 t_fletcher16_checksum(void)
 {
-  struct in_out {
-    char *in;
-    u16 out;
-  } in_out[] = {
-      {
-	  .in  = "\001\002",
-	  .out = straightforward_fletcher16_checksum("\001\002"),
-      },
-      {
-	  .in  = "",
-	  .out = straightforward_fletcher16_checksum(""),
-      },
-      {
-	  .in  = "a",
-	  .out = straightforward_fletcher16_checksum("a"),
-      },
-      {
-	  .in  = "abcd",
-	  .out = straightforward_fletcher16_checksum("abcd"),
-      },
-      {
-	  .in  = "message digest",
-	  .out = straightforward_fletcher16_checksum("message digest"),
-      },
-      {
-	  .in  = "abcdefghijklmnopqrstuvwxyz",
-	  .out = straightforward_fletcher16_checksum("abcdefghijklmnopqrstuvwxyz"),
-      },
-      {
-	  .in  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-	  .out = straightforward_fletcher16_checksum("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"),
-      },
-      {
-	  .in  = "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
-	  .out = straightforward_fletcher16_checksum("12345678901234567890123456789012345678901234567890123456789012345678901234567890"),
-      },
+  struct bt_pair test_vectors[] = {
+    {
+      .in  = "\001\002",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("\001\002") }),
+    },
+    {
+      .in  = "",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("") }),
+    },
+    {
+      .in  = "a",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("a") }),
+    },
+    {
+      .in  = "abcd",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("abcd") }),
+    },
+    {
+      .in  = "message digest",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("message digest") }),
+    },
+    {
+      .in  = "abcdefghijklmnopqrstuvwxyz",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("abcdefghijklmnopqrstuvwxyz") }),
+    },
+    {
+      .in  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") }),
+    },
+    {
+      .in  = "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+      .out =  & ((const u16) { straightforward_fletcher16_checksum("12345678901234567890123456789012345678901234567890123456789012345678901234567890") }),
+    },
   };
 
-  bt_assert_out_fn_in(get_fletcher16_checksum, in_out, "'%s'", "0x%04X");
-
-  return BT_SUCCESS;
+  return bt_assert_batch(test_vectors, test_fletcher16_checksum, bt_fmt_str, bt_fmt_unsigned);
 }
 
 int

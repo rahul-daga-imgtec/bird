@@ -25,6 +25,9 @@
 
 #define BACKTRACE_MAX_LINES 100
 
+#define sprintf_concat(s, format, ...) \
+    snprintf(s + strlen(s), sizeof(s) - strlen(s), format, ##__VA_ARGS__)
+
 static const char *request;
 static int list_tests;
 static int do_core;
@@ -384,12 +387,12 @@ bt_assert_batch__(struct bt_batch *opts)
     snprintf(b, sizeof(b), "%s(", opts->test_fn_name);
 
     opts->in_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->data[i].in);
-    bt_sprintf_concat(b, ") gives ");
+    sprintf_concat(b, ") gives ");
     opts->out_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->out_buf);
 
     if (bt_suit_case_result == BT_FAILURE)
     {
-      bt_sprintf_concat(b, ", but expecting is ");
+      sprintf_concat(b, ", but expecting is ");
       opts->out_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->data[i].out);;
     }
 

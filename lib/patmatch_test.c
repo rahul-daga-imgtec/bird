@@ -11,117 +11,133 @@
 #include "nest/bird.h"
 #include "lib/string.h"
 
-#define MATCH		1
-#define NOMATCH		0
+#define MATCH		(int) { 1 }
+#define NOMATCH		(int) { 0 }
 
-struct in {
+struct match_pair {
   byte *pattern;
   byte *data;
 };
 
-struct in_out {
-  struct in in;
-  byte out;
-};
+static int
+test_matching(void *out_, const void *in_, const void *expected_out_)
+{
+  int *out = out_;
+  const struct match_pair *in = in_;
+  const int *expected_out = expected_out_;
+
+  *out = patmatch(in->pattern, in->data);
+
+  return (*out == *expected_out) ? BT_SUCCESS : BT_FAILURE;
+}
 
 static void
-match(struct in in, byte *out)
+fmt_match_pair(char *buf, size_t size, const void *data)
 {
-  *out = patmatch(in.pattern, in.data) ? MATCH : NOMATCH;
+  const struct match_pair *mp = data;
+  snprintf(buf, size, "pattern: '%s', subject: '%s'", mp->pattern, mp->data);
+}
+
+static void
+fmt_match_result(char *buf, size_t size, const void *data)
+{
+  const int *result = data;
+  snprintf(buf, size, *result ? "match" : "no-match");
 }
 
 static int
 t_matching(void)
 {
-  struct in_out in_out[] = {
-      {
-	  .in  = {
-	      .pattern = "",
-	      .data    = "",
-	  },
-	  .out = MATCH,
+  struct bt_pair test_vectors[] = {
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "",
+	.data    = "",
       },
-      {
-	  .in  = {
-	      .pattern = "*",
-	      .data    = "",
-	  },
-	  .out = MATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "*",
+	.data    = "",
       },
-      {
-	  .in  = {
-	      .pattern = "\\*",
-	      .data    = "*",
-	  },
-	  .out = MATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "\\*",
+	.data    = "*",
       },
-      {
-	  .in  = {
-	      .pattern = "\\*",
-	      .data    = "a",
-	  },
-	  .out = NOMATCH,
-      },      {
-	  .in  = {
-	      .pattern = "?",
-	      .data    = "",
-	  },
-	  .out = NOMATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "\\*",
+	.data    = "a",
       },
-      {
-	  .in  = {
-	      .pattern = "abcdefghijklmnopqrstuvwxyz",
-	      .data    = "abcdefghijklmnopqrstuvwxyz",
-	  },
-	  .out = MATCH,
+      .out = & NOMATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "?",
+	.data    = "",
       },
-      {
-	  .in  = {
-	      .pattern = "??????????????????????????",
-	      .data    = "abcdefghijklmnopqrstuvwxyz",
-	  },
-	  .out = MATCH,
+      .out = & NOMATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "abcdefghijklmnopqrstuvwxyz",
+	.data    = "abcdefghijklmnopqrstuvwxyz",
       },
-      {
-	  .in  = {
-	      .pattern = "*abcdefghijklmnopqrstuvwxyz*",
-	      .data    =  "abcdefghijklmnopqrstuvwxyz",
-	  },
-	  .out = MATCH,
-      },      {
-	  .in  = {
-	      .pattern = "ab?defg*jklmnop*stu*wxy*z",
-	      .data    = "abcdefghijklmnopqrstuvwxyz",
-	  },
-	  .out = MATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "??????????????????????????",
+	.data    = "abcdefghijklmnopqrstuvwxyz",
       },
-      {
-	  .in  = {
-	      .pattern = "abcdefghijklmnopqrstuvwxyz",
-	      .data    = "abcdefghijklmnopqrtuvwxyz",
-	  },
-	  .out = NOMATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "*abcdefghijklmnopqrstuvwxyz*",
+	.data    =  "abcdefghijklmnopqrstuvwxyz",
       },
-      {
-	  .in  = {
-	      .pattern = "abcdefghijklmnopqr?uvwxyz",
-	      .data    = "abcdefghijklmnopqrstuvwxyz",
-	  },
-	  .out = NOMATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "ab?defg*jklmnop*stu*wxy*z",
+	.data    = "abcdefghijklmnopqrstuvwxyz",
       },
-      {
-	  .in  = {
-	      .pattern = "aa*aaaaa?aaaaaaaaaaaaaaaaaaa",
-	      .data    = "aaaaaaaaaaaaaaaaaaaaaaaaaa",
-	  },
-	  .out = NOMATCH,
+      .out = & MATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "abcdefghijklmnopqrstuvwxyz",
+	.data    = "abcdefghijklmnopqrtuvwxyz",
       },
+      .out = & NOMATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "abcdefghijklmnopqr?uvwxyz",
+	.data    = "abcdefghijklmnopqrstuvwxyz",
+      },
+      .out = & NOMATCH,
+    },
+    {
+      .in  = & (struct match_pair) {
+	.pattern = "aa*aaaaa?aaaaaaaaaaaaaaaaaaa",
+	.data    = "aaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      .out = & NOMATCH,
+    },
   };
 
-  bt_assert_fn_in_out(match, in_out, "'%s' ~ '%s'", "%d");
-
-  return BT_SUCCESS;
+  return bt_assert_batch(test_vectors, test_matching, fmt_match_pair, fmt_match_result);
 }
+
 int
 main(int argc, char *argv[])
 {
