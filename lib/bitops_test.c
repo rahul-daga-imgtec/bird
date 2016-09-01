@@ -87,8 +87,8 @@ static void
 check_log2(u32 n)
 {
   u32 log  = u32_log2(n);
-  u32 low  = naive_pow(2, log);
-  u32 high = naive_pow(2, log+1);
+  u32 low  = bt_naive_pow(2, log);
+  u32 high = bt_naive_pow(2, log+1);
 
   bt_assert_msg(n >= low && n < high,
 		"Test u32_log2(%u) = %u, %u should be in the range <%u, %u)",
@@ -107,7 +107,7 @@ t_log2(void)
 
   for (i = 0; i < 31; i++)
   {
-    in_out_data[i].in  = naive_pow(2, i+1);
+    in_out_data[i].in  = bt_naive_pow(2, i+1);
     in_out_data[i].out = i+1;
   }
 

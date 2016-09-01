@@ -158,8 +158,11 @@ bt_config_file_parse(const char *filepath)
   return bt_config_parse__(content, filepath);
 }
 
+/*
+ * Returns @base raised to the power of @power.
+ */
 uint
-naive_pow(uint base, uint power)
+bt_naive_pow(uint base, uint power)
 {
   uint result = 1;
   uint i;

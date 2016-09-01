@@ -68,7 +68,7 @@ show_tree2(struct f_tree *root_node, const char *tree_name)
 static uint
 get_nodes_count_full_bin_tree(uint height)
 {
-  return (naive_pow(2, height+1) - 1);
+  return (bt_naive_pow(2, height+1) - 1);
 }
 
 static struct f_tree *

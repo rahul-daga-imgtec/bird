@@ -24,7 +24,7 @@
 #define BT_CONFIG_PARSE_KERNEL_DEVICE	"protocol kernel { ipv4; } \n"
 #define BT_CONFIG_SIMPLE		BT_CONFIG_PARSE_ROUTER_ID BT_CONFIG_PARSE_KERNEL_DEVICE
 
-uint naive_pow(uint base, uint power);
+uint bt_naive_pow(uint base, uint power);
 
 void bt_bird_init(void);
 struct config *bt_config_parse(const char *cfg);
