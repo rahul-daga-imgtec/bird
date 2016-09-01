@@ -2,6 +2,6 @@ src := bitops.c checksum.c event.c idm.c ip.c lists.c md5.c mempool.c net.c patm
 obj := $(src-o-files)
 $(all-daemon)
 
-tests_src := heap_test.c buffer_test.c event_test.c bitops_test.c patmatch_test.c sha512_test.c fletcher16_test.c slist_test.c checksum_test.c sha256_test.c lists_test.c md5_test.c ip_test.c hash_test.c printf_test.c sha1_test.c
+tests_src := heap_test.c buffer_test.c event_test.c bitops_test.c patmatch_test.c fletcher16_test.c slist_test.c checksum_test.c sha_test.c lists_test.c md5_test.c ip_test.c hash_test.c printf_test.c
 tests_targets := $(tests_targets) $(tests-target-files)
 tests_objs := $(tests_objs) $(src-o-files)

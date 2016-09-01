@@ -170,3 +170,21 @@ bt_naive_pow(uint base, uint power)
     result *= base;
   return result;
 }
+
+/**
+ * bytes_to_hex - transform data into hexadecimal representation
+ * @buf: preallocated string buffer
+ * @in_data: data for transformation
+ * @size: the length of @in_data
+ *
+ * This function transforms @in_data of length @size into hexadecimal
+ * representation and writes it into @buf.
+ */
+void
+bt_bytes_to_hex(char *buf, const byte *in_data, size_t size)
+{
+  size_t i;
+  for(i = 0; i < size; i++)
+    sprintf(buf + i*2, "%02x", in_data[i]);
+}
+
