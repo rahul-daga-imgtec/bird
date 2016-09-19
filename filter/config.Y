@@ -82,7 +82,7 @@ f_new_pair_set(int fa, int ta, int fb, int tb)
 
   if ((fa == ta) || ((fb == 0) && (tb == 0xFFFF)))
     return f_new_pair_item(fa, ta, fb, tb);
-  
+
   if ((ta < fa) || (tb < fb))
     cf_error( "From value cannot be higher that To value in pair sets");
 
@@ -331,7 +331,7 @@ type:
  | BGPPATH { $$ = T_PATH; }
  | CLIST { $$ = T_CLIST; }
  | ECLIST { $$ = T_ECLIST; }
- | type SET { 
+ | type SET {
 	switch ($1) {
 	  case T_INT:
 	  case T_PAIR:
@@ -445,7 +445,7 @@ function_def:
    } function_params function_body {
      $2->def = $5;
      $2->aux2 = $4;
-     DBG("Hmm, we've got one function here - %s\n", $2->name); 
+     DBG("Hmm, we've got one function here - %s\n", $2->name);
      cf_pop_scope();
    }
  ;
@@ -528,7 +528,7 @@ pair_item:
      /* Hack: $2 and $4 should be pair_expr, but that would cause shift/reduce conflict */
      if ((pair_a($2) != pair_b($2)) || (pair_a($4) != pair_b($4)))
        cf_error("syntax error");
-     $$ = f_new_pair_item(pair_b($2), $8, pair_b($4), $10); 
+     $$ = f_new_pair_item(pair_b($2), $8, pair_b($4), $10);
    }
  ;
 
@@ -608,7 +608,7 @@ switch_body: /* EMPTY */ { $$ = NULL; }
 /* CONST '(' expr ')' { $$ = f_new_inst(); $$->code = 'c'; $$->aux = T_INT; $$->a2.i = $3; } */
 
 bgp_path_expr:
-   symbol       { $$ = $1; }   
+   symbol       { $$ = $1; }
  | '(' term ')' { $$ = $2; }
  ;
 
@@ -756,8 +756,8 @@ term:
  | '+' EMPTY '+' { $$ = f_new_inst(); $$->code = 'E'; $$->aux = T_PATH; }
  | '-' EMPTY '-' { $$ = f_new_inst(); $$->code = 'E'; $$->aux = T_CLIST; }
  | '-' '-' EMPTY '-' '-' { $$ = f_new_inst(); $$->code = 'E'; $$->aux = T_ECLIST; }
- | PREPEND '(' term ',' term ')' { $$ = f_new_inst(); $$->code = P('A','p'); $$->a1.p = $3; $$->a2.p = $5; } 
- | ADD '(' term ',' term ')' { $$ = f_new_inst(); $$->code = P('C','a'); $$->a1.p = $3; $$->a2.p = $5; $$->aux = 'a'; } 
+ | PREPEND '(' term ',' term ')' { $$ = f_new_inst(); $$->code = P('A','p'); $$->a1.p = $3; $$->a2.p = $5; }
+ | ADD '(' term ',' term ')' { $$ = f_new_inst(); $$->code = P('C','a'); $$->a1.p = $3; $$->a2.p = $5; $$->aux = 'a'; }
  | DELETE '(' term ',' term ')' { $$ = f_new_inst(); $$->code = P('C','a'); $$->a1.p = $3; $$->a2.p = $5; $$->aux = 'd'; }
  | FILTER '(' term ',' term ')' { $$ = f_new_inst(); $$->code = P('C','a'); $$->a1.p = $3; $$->a2.p = $5; $$->aux = 'f'; }
 
@@ -812,7 +812,7 @@ print_list: /* EMPTY */ { $$ = NULL; }
    }
  ;
 
-var_listn: term { 
+var_listn: term {
      $$ = f_new_inst();
      $$->code = 's';
      $$->a1.p = NULL;
@@ -880,7 +880,7 @@ cmd:
      $$ = f_new_inst();
      $$->code = P('P','S');
      $$->a1.p = $3;
-   } 
+   }
  | UNSET '(' rtadot dynamic_attr ')' ';' {
      $$ = $4;
      $$->aux = EAF_TYPE_UNDEF | EAF_TEMP;

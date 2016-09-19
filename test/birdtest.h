@@ -99,7 +99,7 @@ void bt_log_suite_case_result(int result, const char *fmt, ...);
   bt_assert_msg(test, "Assertion (%s) at %s:%d", #test, __FILE__, __LINE__)
 
 #define bt_assert_msg(test, format, ...)				\
-  do 									\
+  do									\
   {									\
     int bt_suit_case_result = BT_SUCCESS;				\
     if ((test) == 0) 							\

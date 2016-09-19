@@ -22,7 +22,7 @@ struct config {
   linpool *mem;				/* Linear pool containing configuration data */
   list protos;				/* Configured protocol instances (struct proto_config) */
   list tables;				/* Configured routing tables (struct rtable_config) */
-  list logfiles;			/* Configured log fils (sysdep) */
+  list logfiles;			/* Configured log files (sysdep) */
 
   int mrtdump_file;			/* Configured MRTDump file (sysdep, fd in unix) */
   char *syslog_name;			/* Name used for syslog (NULL -> no syslog) */

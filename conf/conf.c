@@ -403,7 +403,7 @@ config_confirm(void)
  * if it's been queued due to another reconfiguration being in progress now,
  * %CONF_UNQUEUED if a scheduled reconfiguration is removed, %CONF_NOTHING
  * if there is no relevant configuration to undo (the previous config request
- * was config_undo() too)  or %CONF_SHUTDOWN if BIRD is in shutdown mode and 
+ * was config_undo() too)  or %CONF_SHUTDOWN if BIRD is in shutdown mode and
  * no new configuration changes  are accepted.
  */
 int

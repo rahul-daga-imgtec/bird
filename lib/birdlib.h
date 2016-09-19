@@ -150,7 +150,7 @@ void bug(const char *msg, ...) NORET;
 #define L_FATAL "\010"			/* Fatal errors */
 #define L_BUG "\011"			/* BIRD bugs */
 
-void debug(const char *msg, ...);		/* Printf to debug output */
+void debug(const char *msg, ...);	/* Printf to debug output */
 
 /* Debugging */
 

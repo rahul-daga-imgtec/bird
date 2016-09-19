@@ -393,7 +393,7 @@ bt_assert_batch__(struct bt_batch *opts)
     if (bt_suit_case_result == BT_FAILURE)
     {
       sprintf_concat(b, ", but expecting is ");
-      opts->out_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->data[i].out);;
+      opts->out_fmt(b+strlen(b), sizeof(b)-strlen(b), opts->data[i].out);
     }
 
     bt_log_suite_case_result(bt_suit_case_result, "%s", b);
