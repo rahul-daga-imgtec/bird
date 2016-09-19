@@ -195,7 +195,7 @@ bt_log_result(int result, const char *fmt, va_list argptr)
 	   bt_filename,
 	   bt_test_id ? ": " : "",
 	   bt_test_id ? bt_test_id : "",
-	   (bt_test_id && fmt) ? ": " : "");
+	   (fmt && strlen(fmt) > 0) ? ": " : "");
   pos = msg_buf + strlen(msg_buf);
 
   vsnprintf(pos, sizeof(msg_buf) - (pos - msg_buf), fmt, argptr);

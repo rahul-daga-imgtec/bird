@@ -104,6 +104,7 @@ void bt_log_suite_case_result(int result, const char *fmt, ...);
     int bt_suit_case_result = BT_SUCCESS;				\
     if ((test) == 0) 							\
     {									\
+      bt_result = BT_FAILURE;						\
       bt_suite_result = BT_FAILURE;					\
       bt_suit_case_result = BT_FAILURE;					\
     }									\
