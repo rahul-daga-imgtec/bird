@@ -7,6 +7,8 @@
  */
 
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "test/birdtest.h"
 #include "test/bt-utils.h"
@@ -28,16 +30,27 @@
 static const byte *bt_config_parse_pos;
 static uint bt_config_parse_remain_len;
 
+/* This is cf_read_hook for hard-coded text configuration */
 static int
-cf_txt_read(byte *dest_buf, uint max_len, UNUSED int fd)
+cf_static_read(byte *dest, uint max_len, int fd UNUSED)
 {
   if (max_len > bt_config_parse_remain_len)
     max_len = bt_config_parse_remain_len;
-  memcpy(dest_buf, bt_config_parse_pos, max_len);
+  memcpy(dest, bt_config_parse_pos, max_len);
   bt_config_parse_pos += max_len;
   bt_config_parse_remain_len -= max_len;
-
   return max_len;
+}
+
+/* This is cf_read_hook for reading configuration files,
+ * function is copied from main.c, cf_read() */
+static int
+cf_file_read(byte *dest, uint max_len, int fd)
+{
+  int l = read(fd, dest, max_len);
+  if (l < 0)
+    cf_error("Read error");
+  return l;
 }
 
 void
@@ -67,14 +80,55 @@ void bt_bird_cleanup(void)
   config = new_config = NULL;
 }
 
+static char *
+bt_load_file(const char *filename, int quiet)
+{
+  FILE *f = fopen(filename, "rb");
+  if (!quiet)
+    bt_assert_msg(f != NULL, "Open %s", filename);
+
+  if (f == NULL)
+    return NULL;
+
+  fseek(f, 0, SEEK_END);
+  long file_size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char *file_body = mb_allocz(&root_pool, file_size+1);
+
+  size_t read_size = 0;
+
+  /* XXX: copied from cf-lex.c */
+  errno=0;
+  while ((read_size += fread(file_body+read_size, 1, file_size-read_size, f)) != file_size && ferror(f))
+  {
+    bt_debug("iteration \n");
+    if(errno != EINTR)
+    {
+      bt_abort_msg("errno: %d", errno);
+      break;
+    }
+    errno=0;
+    clearerr(f);
+  }
+  fclose(f);
+
+  if (!quiet)
+    bt_assert_msg(read_size == file_size, "Read %s", filename);
+
+  return file_body;
+}
+
 static void
-bt_show_cfg_error(const char *str, const struct config *cfg)
+bt_show_cfg_error(const struct config *cfg)
 {
   int lino = 0;
   int lino_delta = 5;
   int lino_err = cfg->err_lino;
 
-  while (*str)
+  const char *str = bt_load_file(cfg->err_file_name, 1);
+
+  while (str && *str)
   {
     lino++;
     if (BETWEEN(lino, lino_err - lino_delta, lino_err + lino_delta))
@@ -88,66 +142,49 @@ bt_show_cfg_error(const char *str, const struct config *cfg)
   bt_debug("\n");
 }
 
-static char *
-bt_load_file(const char *filename)
-{
-  FILE *f = fopen(filename, "rb");
-  bt_assert_msg(f != NULL, "Open file %s", filename);
-
-  fseek(f, 0, SEEK_END);
-  long pos = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *file_body = mb_allocz(&root_pool, pos+1);
-  bt_assert_msg(file_body != NULL, "Memory allocation for file %s", filename);
-  bt_assert_msg(fread(file_body, pos, 1, f) == 1, "Reading from file %s", filename);
-  fclose(f);
-
-  return file_body;
-}
-
 static struct config *
-bt_config_parse__(const char *cfg_str, const char *filepath)
+bt_config_parse__(struct config *cfg)
 {
-  bt_debug_with_line_nums(cfg_str);
-  struct config *cfg = config_alloc(filepath ? filepath : "");
-  bt_config_parse_pos = cfg_str;
-  bt_config_parse_remain_len = strlen(cfg_str);
-  cf_read_hook = cf_txt_read;
-
-  bt_assert_msg(config_parse(cfg) == 1, "Parse configuration");
+  bt_assert_msg(config_parse(cfg) == 1, "Parse %s", cfg->err_file_name);
 
   if (cfg->err_msg)
   {
-    bt_debug("Parse error at line %d: %s \n", cfg->err_lino, cfg->err_msg);
-    bt_show_cfg_error(cfg_str, cfg);
-  }
-  else
-  {
-    config_commit(cfg, RECONFIG_HARD, 0);
-    new_config = cfg;
-
-    return cfg;
+    bt_debug("Parse error %s, line %d: %s\n", cfg->err_file_name, cfg->err_lino, cfg->err_msg);
+    bt_show_cfg_error(cfg);
+    return NULL;
   }
 
-  return NULL; /* Error in parsing */
+  config_commit(cfg, RECONFIG_HARD, 0);
+  new_config = cfg;
+
+  return cfg;
 }
 
 struct config *
-bt_config_parse(const char *cfg)
+bt_config_parse(const char *cfg_str)
 {
-  return bt_config_parse__(cfg, NULL);
+  struct config *cfg = config_alloc("configuration");
+
+  bt_config_parse_pos = cfg_str;
+  bt_config_parse_remain_len = strlen(cfg_str);
+  cf_read_hook = cf_static_read;
+
+  return bt_config_parse__(cfg);
 }
 
 struct config *
 bt_config_file_parse(const char *filepath)
 {
-  char *content = bt_load_file(filepath);
+  struct config *cfg = config_alloc(filepath);
 
-  if (!content)
+  cfg->file_fd = open(filepath, O_RDONLY);
+  bt_assert_msg(cfg->file_fd > 0, "Open %s", filepath);
+  if (cfg->file_fd < 0)
     return NULL;
 
-  return bt_config_parse__(content, filepath);
+  cf_read_hook = cf_file_read;
+
+  return bt_config_parse__(cfg);
 }
 
 /*

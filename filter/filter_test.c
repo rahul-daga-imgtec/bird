@@ -1,5 +1,5 @@
 /*
- *	Filters: Utility Functions Tests
+ *	Filters: Tests
  *
  *	(c) 2015 CZ.NIC z.s.p.o.
  *
@@ -19,79 +19,65 @@
 #include "filter/filter.h"
 #include "conf/conf.h"
 
-static int
-t_simple(void)
-{
-  bt_bird_init();
+#define BT_CONFIG_FILE "filter/test.conf"
 
-#define TESTING_FILTER_NAME	"my_filter"
-#define TESTING_FILTER_BODY	"{ \n"					\
-				"   if net ~ 10.0.0.0/20 then \n" 	\
-				"     accept; \n"			\
-				"   else \n"				\
-				"     reject;\n"			\
-				"} \n"
 
-  struct config *cfg = bt_config_parse(
-    BT_CONFIG_SIMPLE
-    "filter " TESTING_FILTER_NAME "1" " " TESTING_FILTER_BODY
-    "filter " TESTING_FILTER_NAME "2" " " TESTING_FILTER_BODY);
-
-  if (cfg)
-  {
-    struct symbol *sym_f1 = cf_get_symbol(TESTING_FILTER_NAME "1");
-    struct symbol *sym_f2 = cf_get_symbol(TESTING_FILTER_NAME "2");
-
-    struct filter *f1 = sym_f1->def;
-    struct filter *f2 = sym_f2->def;
-
-    bt_assert(strcmp(filter_name(f1), TESTING_FILTER_NAME "1") == 0);
-    bt_assert(strcmp(filter_name(f2), TESTING_FILTER_NAME "2") == 0);
-
-    bt_assert(filter_same(f1,f2));
-  }
-
-  /* TODO: check the testing filter */
-
-  return BT_SUCCESS;
-}
-#undef TESTING_FILTER_NAME
-#undef TESTING_FILTER_BODY
-
-static int
-test_config_file(const void *filename_void)
+static struct config *
+parse_config_file(const void *filename_void)
 {
   bt_bird_init();
 
   size_t fn_size = strlen((const char *) filename_void) + 1;
   char *filename = alloca(fn_size);
   strncpy(filename, filename_void, fn_size);
-  bt_debug("Testing configuration %s\n", filename);
 
-  return bt_config_file_parse(filename) ? BT_SUCCESS : BT_FAILURE;
+  struct config *c = bt_config_file_parse(filename);
+  bt_bird_cleanup();
+
+  return c;
 }
 
-static int t_config_file1(const void *fname) { return test_config_file(fname); }
-static int t_config_file2(const void *fname) { return test_config_file(fname); }
-static int t_config_file3(const void *fname) { return test_config_file(fname); }
-static int t_config_file4(const void *fname) { return test_config_file(fname); }
+static int
+run_function(const void *parsed_fn_def)
+{
+  struct f_inst *f = (struct f_inst *) parsed_fn_def;
+
+  linpool *tmp = lp_new(&root_pool, 4096);
+  f_eval(f, tmp);
+  rfree(tmp);
+
+  return BT_SUCCESS;
+}
+
+static void
+bt_assert_filter(int result, struct f_inst *assert)
+{
+  int bt_suit_case_result = BT_SUCCESS;
+  if (!result)
+  {
+    bt_result = BT_FAILURE;
+    bt_suite_result = BT_FAILURE;
+    bt_suit_case_result = BT_FAILURE;
+  }
+
+  bt_log_suite_case_result(bt_suit_case_result, "Assertion at line %d (%s)", assert->lineno, (char *) assert->a2.p);
+}
 
 int
 main(int argc, char *argv[])
 {
   bt_init(argc, argv);
 
-#define TEST_FNAME_1 "filter/test.conf"
-#define TEST_FNAME_2 "filter/test.conf2"
-#define TEST_FNAME_3 "filter/test_bgp_filtering.conf"
-#define TEST_FNAME_4 "filter/test6.conf"
-#define bt_test_suite_arg_(x) bt_test_suite_arg(t_config_file##x, TEST_FNAME_##x, TEST_FNAME_##x)
+  struct config *c = parse_config_file(BT_CONFIG_FILE);
 
-  bt_test_suite(t_simple, "Simple filter testing");
-  bt_test_suite_arg_(1);
-  bt_test_suite_arg_(2);
-//  bt_test_suite_arg_(3);	/* TODO: uncommnet with BGP integration version */
-  bt_test_suite_arg_(4);
+  if (c)
+  {
+    bt_assert_hook = bt_assert_filter;
+
+    struct f_bt_test_suite *t;
+    WALK_LIST(t, c->tests)
+      bt_test_suite_base(run_function, t->fn_name, t->fn, BT_FORKING, BT_TIMEOUT, "%s", t->dsc);
+  }
 
   return bt_exit_value();
 }

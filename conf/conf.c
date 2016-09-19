@@ -94,6 +94,7 @@ config_alloc(const char *name)
   char *ndup = lp_allocu(l, nlen);
   memcpy(ndup, name, nlen);
 
+  init_list(&c->tests);
   c->mrtdump_file = -1; /* Hack, this should be sysdep-specific */
   c->pool = p;
   c->mem = l;

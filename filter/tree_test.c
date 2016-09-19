@@ -18,7 +18,6 @@ static void
 start_conf_env(void)
 {
   bt_bird_init();
-  bt_config_parse(BT_CONFIG_SIMPLE);
 
   pool *p = rp_new(&root_pool, "helper_pool");
   linpool *l = lp_new(p, 4080);
