@@ -72,7 +72,7 @@ bt_init(int argc, char *argv[])
     {
       case 'l':
 	list_tests = 1;
-	return;
+	break;
 
       case 'c':
 	do_core = 1;
@@ -271,7 +271,7 @@ bt_log_suite_case_result(int result, const char *fmt, ...)
   }
 }
 
-void
+int
 bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, int forked, int timeout, const char *dsc, ...)
 {
   if (list_tests)
@@ -282,7 +282,7 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
     vprintf(dsc, args);
     va_end(args);
     printf("\n");
-    return;
+    return BT_SUCCESS;
   }
 
   if (no_fork)
@@ -292,7 +292,7 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
     timeout = 0;
 
   if (request && strcmp(id, request))
-    return;
+    return BT_SUCCESS;
 
   bt_suite_result = BT_SUCCESS;
   bt_test_id = id;
@@ -319,7 +319,6 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
     int rv = waitpid(pid, &s, 0);
     bt_syscall(rv < 0, "waitpid");
 
-    bt_suite_result = 2;
     if (WIFEXITED(s))
     {
       /* Normal exit */
@@ -353,15 +352,15 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
 
   bt_log_suite_result(bt_suite_result, NULL);
   bt_test_id = NULL;
+
+  return bt_suite_result;
 }
 
 int
 bt_exit_value(void)
 {
-  if (list_tests)
-    return EXIT_SUCCESS;
-
-  bt_log_overall_result(bt_result, "");
+  if (!list_tests || (list_tests && bt_result != BT_SUCCESS))
+    bt_log_overall_result(bt_result, "");
   return bt_result == BT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

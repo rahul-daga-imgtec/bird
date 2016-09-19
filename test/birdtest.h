@@ -32,7 +32,7 @@ extern const char *bt_test_id;
 
 void bt_init(int argc, char *argv[]);
 int  bt_exit_value(void);
-void bt_test_suite_base(int (*test_fn)(const void *), const char *test_id, const void *test_fn_argument, int forked, int timeout, const char *dsc, ...);
+int bt_test_suite_base(int (*test_fn)(const void *), const char *test_id, const void *test_fn_argument, int forked, int timeout, const char *dsc, ...);
 long int bt_random(void);
 
 void bt_log_suite_result(int result, const char *fmt, ...);

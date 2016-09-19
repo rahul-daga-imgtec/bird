@@ -59,20 +59,12 @@ bt_bird_init(void)
   proto_build(&proto_unix_iface);
 }
 
-static void
-bt_debug_with_line_nums(const char *str)
+void bt_bird_cleanup(void)
 {
-  uint lino = 0;
-  while (*str)
-  {
-    lino++;
-    bt_debug("%4u    ", lino);
-    do
-    {
-      bt_debug("%c", *str);
-    } while (*str && *(str++) != '\n');
-  }
-  bt_debug("\n");
+  for (int i = 0; i < EAP_MAX; i++)
+    attr_class_to_protocol[i] = NULL;
+
+  config = new_config = NULL;
 }
 
 static void
