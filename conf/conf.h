@@ -157,7 +157,7 @@ void cf_push_scope(struct symbol *);
 void cf_pop_scope(void);
 struct symbol *cf_walk_symbols(struct config *cf, struct symbol *sym, int *pos);
 char *cf_symbol_class_name(struct symbol *sym);
-char *cf_get_text(void);
+char *cf_get_text_(void);
 
 static inline int cf_symbol_is_constant(struct symbol *sym)
 { return (sym->class & 0xff00) == SYM_CONSTANT; }
