@@ -953,7 +953,7 @@ cmd:
 
 get_cf_position:
 {
-  $$ = cf_get_text_();
+  $$ = cf_text;
 };
 
 

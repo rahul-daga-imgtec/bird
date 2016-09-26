@@ -681,19 +681,6 @@ cf_symbol_class_name(struct symbol *sym)
     }
 }
 
-/**
- * cf_get_text_ - get the current token
- *
- * The build-in flex function cf_get_text() is available not before version 2.6.0
- * (2015-11-17). So cf_get_text_() function ensures compatibility even with
- * older flex versions.
- */
-char *
-cf_get_text_(void)
-{
-  return yytext;
-}
-
 
 /**
  * DOC: Parser
