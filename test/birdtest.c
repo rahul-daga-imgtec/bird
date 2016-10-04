@@ -302,7 +302,7 @@ bt_test_suite_base(int (*fn)(const void *), const char *id, const void *fn_arg, 
 
   if (!forked)
   {
-    bt_run_test_fn(fn, fn_arg, timeout);
+    bt_suite_result = bt_run_test_fn(fn, fn_arg, timeout);
   }
   else
   {

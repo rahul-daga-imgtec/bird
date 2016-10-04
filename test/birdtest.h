@@ -38,7 +38,7 @@ long int bt_random(void);
 void bt_log_suite_result(int result, const char *fmt, ...);
 void bt_log_suite_case_result(int result, const char *fmt, ...);
 
-#define BT_SUCCESS 			1
+#define BT_SUCCESS 			42	/* 1 is too usual, filter quitbird returns 1 too */
 #define BT_FAILURE 			0
 
 #define BT_TIMEOUT 			5	/* Default timeout in seconds */
