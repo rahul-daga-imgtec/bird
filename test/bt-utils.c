@@ -145,7 +145,7 @@ bt_show_cfg_error(const struct config *cfg)
 static struct config *
 bt_config_parse__(struct config *cfg)
 {
-  bt_assert_msg(config_parse(cfg) == 1, "Parse %s", cfg->err_file_name);
+  bt_assert_msg(config_parse(cfg) == 1, "Parse %s", cfg->file_name);
 
   if (cfg->err_msg)
   {
