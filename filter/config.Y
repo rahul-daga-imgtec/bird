@@ -266,6 +266,51 @@ f_generate_ec(u16 kind, struct f_inst *tk, struct f_inst *tv)
   return rv;
 }
 
+/*
+ * Remove all new lines and doubled whitespaces
+ * and convert all tabulators to spaces
+ * and return a copy of string
+ */
+char *
+assert_copy_expr(const char *start, size_t len)
+{
+  /* XXX: Allocates maybe a little more memory than we really finally need */
+  char *str = cfg_alloc(len + 1);
+
+  char *dst = str;
+  const char *src = start - 1;
+  const char *end = start + len;
+  while (++src < end)
+  {
+    if (*src == '\n')
+      continue;
+
+    /* Skip doubled whitespaces */
+    if (src != start)
+    {
+      const char *prev = src - 1;
+      if ((*src == ' ' || *src == '\t') && (*prev == ' ' || *prev == '\t'))
+	continue;
+    }
+
+    if (*src == '\t')
+      *dst = ' ';
+    else
+      *dst = *src;
+
+    dst++;
+  }
+  *dst = '\0';
+
+  return str;
+}
+
+/*
+ * assert_done - create f_instruction of bt_assert
+ * @expr: expression in bt_assert()
+ * @start: pointer to first char of test expression
+ * @end: pointer to the last char of test expression
+ */
 static struct f_inst *
 assert_done(struct f_inst *expr, const char *start, const char *end)
 {
@@ -274,12 +319,9 @@ assert_done(struct f_inst *expr, const char *start, const char *end)
   i->code = P('a','s');
   i->a1.p = expr;
 
-  if (end > start)
+  if (end >= start)
   {
-    size_t expr_len = end - start;
-    char *expr_str = cfg_allocz(expr_len + 1);
-    memcpy(expr_str, start, expr_len);
-    i->a2.p = expr_str;
+    i->a2.p = assert_copy_expr(start, end - start + 1);
   }
   else
   {
@@ -948,7 +990,7 @@ cmd:
  ;
 
  bt_assert:
-   BT_ASSERT '(' get_cf_position term get_cf_position ')' { $$ = assert_done($4, $3 + 1, $5); }
+   BT_ASSERT '(' get_cf_position term get_cf_position ')' { $$ = assert_done($4, $3 + 1, $5 - 1); }
  ;
 
 get_cf_position:
