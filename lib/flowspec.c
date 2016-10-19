@@ -7,14 +7,10 @@
  */
 
 #include "nest/bird.h"
+#include "lib/flowspec.h"
 
 uint
-fsc_get_length(const void *nlri)
+flow_get_length(const byte *b)
 {
-  const u8 *byte  = nlri;
-
-  if ((*byte & 0xf0) == 0xf0)
-    return ((*byte & 0xf) << 8) + *(byte+1);
-
-  return *byte;
+  return ((*b & 0xf0) == 0xf0) ? get_u16(b) & 0x0fff : *b;
 }

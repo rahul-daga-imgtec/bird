@@ -9,6 +9,6 @@
 #ifndef _BIRD_FLOWSPEC_H_
 #define _BIRD_FLOWSPEC_H_
 
-uint fsc_get_length(const void *nlri);
+uint flow_get_length(const byte *b);
 
 #endif /* _BIRD_FLOWSPEC_H_ */

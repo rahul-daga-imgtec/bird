@@ -16,7 +16,7 @@ test_length(void *out_, const void *in_, const void *expected_out_)
   const byte *in = in_;
   const u16 *expected_out = expected_out_;
 
-  *out = fsc_get_length(in);
+  *out = flow_get_length(in);
 
   return (*out == *expected_out) ? BT_SUCCESS : BT_FAILURE;
 }
