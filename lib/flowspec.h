@@ -9,6 +9,8 @@
 #ifndef _BIRD_FLOWSPEC_H_
 #define _BIRD_FLOWSPEC_H_
 
+#include "lib/buffer.h"
+
 enum flow_type {
   FLOW_TYPE_DST_PREFIX = 1,
   FLOW_TYPE_SRC_PREFIX = 2,
@@ -26,10 +28,13 @@ enum flow_type {
   FLOW_TYPE_LABEL = 13,		/* IPv6 */
 };
 
-net_addr_flow4 flow4_insert_part(const net_addr_flow4 *f, const byte *part, uint p_len, pool *mp);
-net_addr_flow6 flow6_insert_part(const net_addr_flow6 *f, const byte *part, uint p_len, pool *mp);
+net_addr_flow4 *flow4_insert_part(net_addr_flow4 *f, const byte *part, uint p_len);
+net_addr_flow6 *flow6_insert_part(net_addr_flow6 *f, const byte *part, uint p_len);
 
 /* Length */
+
+u16 flow_read_length(const byte *data);
+uint flow_write_length(byte *data, u16 len);
 
 u16 flow4_get_length(const net_addr_flow4 *f);
 u16 flow6_get_length(const net_addr_flow6 *f);

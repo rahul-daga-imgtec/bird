@@ -28,48 +28,56 @@ flow_state_str(enum flow_state code)
 
 
 
-static u16
-flow_get_length(const byte *data)
+u16
+flow_read_length(const byte *data)
 {
-  if (!data)
-    return 0;
-
   return ((*data & 0xf0) == 0xf0) ? get_u16(data) & 0x0fff : *data;
 }
 
 u16
 flow4_get_length(const net_addr_flow4 *f)
 {
-  return (f ? flow_get_length(f->data) : 0);
+  return f->length - sizeof(net_addr_flow4);
 }
 
 u16
 flow6_get_length(const net_addr_flow6 *f)
 {
-  return (f ? flow_get_length(f->data) : 0);
+  return f->length - sizeof(net_addr_flow6);
 }
 
 
 
-static void
-flow_set_length(byte *data, u16 len)
+/**
+ * flow_write_length - write compressed length value
+ * @data: destination to write
+ * @len: the value of the length (0 to 0xfff)
+ *
+ * It returns a size (offset) of written data to destination.
+ */
+uint
+flow_write_length(byte *data, u16 len)
 {
   if (len >= 0xf0)
+  {
     put_u16(data, len | 0xf000);
-  else
-    *data = len;
+    return 2;
+  }
+
+  *data = len;
+  return 1;
 }
 
 void
 flow4_set_length(net_addr_flow4 *f, u16 len)
 {
-  flow_set_length(f->data, len);
+  f->length = sizeof(net_addr_flow4) + flow_write_length(f->data, len) + len;
 }
 
 void
 flow6_set_length(net_addr_flow6 *f, u16 len)
 {
-  flow_set_length(f->data, len);
+  f->length = sizeof(net_addr_flow6) + flow_write_length(f->data, len) + len;
 }
 
 
@@ -81,7 +89,7 @@ flow6_set_length(net_addr_flow6 *f, u16 len)
 static const byte *
 flow_first_part(const byte *data)
 {
-  if (!data || flow_get_length(data) == 0)
+  if (!data || flow_read_length(data) == 0)
     return NULL;
 
   /* It is possible to encode <240 into 2 octet too */
@@ -320,60 +328,60 @@ flow6_validate(const byte *nlri, uint len)
 
 
 static byte *
-flow_insert_part(const byte *f_data, const byte *part, uint p_len, pool *mp, int ipv6)
+flow_insert_part(byte *f_data, const byte *part, uint p_len, int ipv6)
 {
-  const u16 f_len = flow_get_length(f_data);
-  const byte *f_nlri = flow_first_part(f_data);
-  const byte *f_pos = f_nlri;
-  const byte *f_end = f_pos + f_len - 1;
-  enum flow_type p_type = *part;
+  const u16 f_len = flow_read_length(f_data);
 
-  while (f_pos && (*f_pos < p_type))
-  {
-    if (*f_pos == p_type)
-      bug("Don't try to insert a same component type more than once");
-
-    f_pos = flow_next_part(f_pos, f_end, ipv6);
-  }
+  /* New length is encoded in 2-bytes instead of 1-byte */
+  if (f_len < 0xf0 && ((*f_data & 0xf0) == 0xf0) && (f_len+p_len >= 0xf0))
+    memmove(f_data+1, f_data, f_len+1);
 
   uint n_len = p_len + f_len;
-  byte *n_data = mb_alloc(mp, n_len + (n_len >= 0xf0 ? 2 : 1));
-  flow_set_length(n_data, n_len);
+  flow_write_length(f_data, n_len);
 
-  byte *n_pos = (byte *) flow_first_part(n_data);
+  byte *f_nlri = (byte *) flow_first_part(f_data);
+  byte *f_pos = f_nlri;
+  byte *f_end = f_pos + f_len - 1;
+  enum flow_type p_type = *part;
+
+  while (f_pos && f_pos <= f_end && (*f_pos < p_type))
+  {
+    if (*f_pos == p_type)
+      bug("Replacing isnt implemented yet!"); /* FIXME */
+
+    f_pos = (byte *) flow_next_part(f_pos, f_end, ipv6);
+  }
 
   if (f_pos == NULL)
   {
     /* Append */
-    memcpy(n_pos, f_nlri, f_len);
-    memcpy(n_pos + f_len, part, p_len);
+    memcpy(f_end+1 , part, p_len);
   }
   else
   {
     /* Prepend/Insert */
     uint f_prep_size = f_pos - f_nlri;
-    memcpy(n_pos, f_nlri, f_prep_size);
-    memcpy(n_pos + f_prep_size, part, p_len);
-    memcpy(n_pos + f_prep_size + p_len, f_pos, f_len - f_prep_size);
+    memmove(f_pos + p_len, f_pos, f_len - f_prep_size);
+    memcpy(f_pos, part, p_len);
   }
 
-  return n_data;
+  return f_data;
 }
 
-net_addr_flow4
-flow4_insert_part(const net_addr_flow4 *f, const byte *part, uint p_len, pool *mp)
+net_addr_flow4 *
+flow4_insert_part(net_addr_flow4 *f, const byte *part, uint p_len)
 {
-  net_addr_flow4 n = *f;
-  n.data = flow_insert_part(f->data, part, p_len, mp, 0);
-
-  return n;
+  if (flow4_get_length(f) == 0)
+    flow4_set_length(f, 0);
+  flow_insert_part(f->data, part, p_len, 0);
+  return f;
 }
 
-net_addr_flow6
-flow6_insert_part(const net_addr_flow6 *f, const byte *part, uint p_len, pool *mp)
+net_addr_flow6 *
+flow6_insert_part(net_addr_flow6 *f, const byte *part, uint p_len)
 {
-  net_addr_flow6 n = *f;
-  n.data = flow_insert_part(f->data, part, p_len, mp, 1);
-
-  return n;
+  if (flow6_get_length(f) == 0)
+    flow6_set_length(f, 0);
+  flow_insert_part(f->data, part, p_len, 1);
+  return f;
 }
