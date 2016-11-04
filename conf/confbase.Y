@@ -80,7 +80,7 @@ CF_DECLS
 %type <iface> ipa_scope
 
 %type <i> expr bool pxlen4
-%type <i32> expr_us flow_num_op flow_bmk_op flow_srcdst flow_logic_op flow_num_type_ flow_bmk_type_
+%type <i32> expr_us flow_num_op flow_srcdst flow_logic_op flow_num_type_ flow_bmk_type_
 %type <time> datetime
 %type <a> ipa
 %type <net> net_ip4_ net_ip6_ net_ip6 net_ip_ net_ip net_or_ipa
@@ -230,14 +230,6 @@ flow_num_op:
  | FALSE	{ $$ = 0b111; }
  ;
 
-/* XXX: Kick off ??? */
-flow_bmk_op:
-    '~'		{ $$ = 0b00; }
-  | '='		{ $$ = 0b01; }
-  | NMA		{ $$ = 0b10; }
-  | NEQ		{ $$ = 0b11; }
-  ;
-
 flow_logic_op:
    OR		{ $$ = 0x00; }
  | AND		{ $$ = 0x40; }
@@ -311,15 +303,6 @@ flow_bmk_opts:
      flow_check_cf_value_length(this_flow, $5);
      flow_builder_add_val_mask(this_flow, $2, $3, $5);
    }
- /* XXX: Kick off ??? */
- | flow_bmk_op expr {
-     flow_check_cf_value_length(this_flow, $2);
-     flow_builder_add_op_val(this_flow, $1, $2);
- }
- | flow_bmk_opts flow_logic_op flow_bmk_op expr {
-     flow_check_cf_value_length(this_flow, $4);
-     flow_builder_add_op_val(this_flow, $2 | $3, $4);
- }
  ;
 
 flow4_item:

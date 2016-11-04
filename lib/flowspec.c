@@ -640,19 +640,6 @@ num_op_str(byte op)
   }
 }
 
-/* XXX: Kick off ??? */
-static const char *
-bmk_op_str(byte op)
-{
-  switch (op & 0x07)
-  {
-  case 0b00: return  "~";
-  case 0b01: return  "=";
-  case 0b10: return "!~";
-  case 0b11: return "!=";
-  }
-}
-
 static const char *
 logic_op_str(byte op)
 {
