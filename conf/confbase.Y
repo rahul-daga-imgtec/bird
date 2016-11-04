@@ -21,10 +21,13 @@ CF_HDR
 #include "nest/route.h"
 #include "nest/cli.h"
 #include "filter/filter.h"
+#include "lib/flowspec.h"
 
 /* FIXME: Turn on YYERROR_VERBOSE and work around lots of bison bugs? */
 
 CF_DEFINES
+
+struct flow_builder *this_flow;
 
 static void
 check_u16(unsigned val)
@@ -77,11 +80,11 @@ CF_DECLS
 %type <iface> ipa_scope
 
 %type <i> expr bool pxlen4
-%type <i32> expr_us
+%type <i32> expr_us flow_num_op flow_bmk_op flow_srcdst flow_logic_op flow_num_type_ flow_bmk_type_
 %type <time> datetime
 %type <a> ipa
 %type <net> net_ip4_ net_ip6_ net_ip6 net_ip_ net_ip net_or_ipa
-%type <net_ptr> net_ net_any net_roa4_ net_roa6_ net_roa_
+%type <net_ptr> net_ net_any net_roa4_ net_roa6_ net_roa_ net_flow4_ net_flow6_ net_flow_
 
 %type <t> text opttext
 
@@ -93,7 +96,9 @@ CF_DECLS
 %left '!'
 %nonassoc '.'
 
-CF_KEYWORDS(DEFINE, ON, OFF, YES, NO, S, MS, US, PORT)
+CF_KEYWORDS(DEFINE, ON, OFF, YES, NO, S, MS, US, PORT, FLOW4, FLOW6, DST, SRC,
+	    PROTO, NEXT, HEADER, DPORT, SPORT, ICMP, TYPE, CODE, TCP, FLAGS,
+	    LENGTH, DSCP, FRAGMENT, LABEL)
 
 CF_GRAMMAR
 
@@ -137,8 +142,6 @@ expr_us:
  | expr MS { $$ = (u32) $1 * 1000; }
  | expr US { $$ = (u32) $1 * 1; }
  ;
-
-/* expr_u16: expr { check_u16($1); $$ = $1; }; */
 
 /* Switches */
 
@@ -214,12 +217,171 @@ net_roa6_: net_ip6_ MAX NUM AS NUM
     cf_error("Invalid max prefix length %d", $3);
 };
 
+/* Network Flow Specification */
+
+flow_num_op:
+   TRUE		{ $$ = 0b000; }
+ | '='		{ $$ = 0b001; }
+ | NEQ		{ $$ = 0b110; }
+ | '<'		{ $$ = 0b100; }
+ | LEQ		{ $$ = 0b101; }
+ | '>'		{ $$ = 0b010; }
+ | GEQ		{ $$ = 0b011; }
+ | FALSE	{ $$ = 0b111; }
+ ;
+
+/* XXX: Kick off ??? */
+flow_bmk_op:
+    '~'		{ $$ = 0b00; }
+  | '='		{ $$ = 0b01; }
+  | NMA		{ $$ = 0b10; }
+  | NEQ		{ $$ = 0b11; }
+  ;
+
+flow_logic_op:
+   OR		{ $$ = 0x00; }
+ | AND		{ $$ = 0x40; }
+ ;
+
+flow_num_type_:
+   PROTO	{ $$ = FLOW_TYPE_IP_PROTOCOL; }
+ | NEXT HEADER  { $$ = FLOW_TYPE_NEXT_HEADER; }
+ | PORT		{ $$ = FLOW_TYPE_PORT; }
+ | DPORT	{ $$ = FLOW_TYPE_DST_PORT; }
+ | SPORT	{ $$ = FLOW_TYPE_SRC_PORT; }
+ | ICMP TYPE	{ $$ = FLOW_TYPE_ICMP_TYPE; }
+ | ICMP CODE	{ $$ = FLOW_TYPE_ICMP_CODE; }
+ | LENGTH	{ $$ = FLOW_TYPE_PACKET_LENGTH; }
+ | DSCP		{ $$ = FLOW_TYPE_DSCP; }
+ | LABEL	{ $$ = FLOW_TYPE_LABEL; }
+ ;
+
+flow_bmk_type_:
+   TCP FLAGS	{ $$ = FLOW_TYPE_TCP_FLAGS; }
+ | FRAGMENT	{ $$ = FLOW_TYPE_FRAGMENT; }
+ ;
+
+flow_num_type: flow_num_type_{ flow_builder_set_type(this_flow, $1); };
+flow_bmk_type: flow_bmk_type_{ flow_builder_set_type(this_flow, $1); };
+
+flow_srcdst:
+   DST		{ $$ = FLOW_TYPE_DST_PREFIX; }
+ | SRC		{ $$ = FLOW_TYPE_SRC_PREFIX; }
+ ;
+
+flow_num_opts:
+   flow_num_op expr {
+     flow_check_cf_value_length(this_flow, $2);
+     flow_builder_add_op_val(this_flow, $1, $2);
+   }
+ | flow_num_opts flow_logic_op flow_num_op expr {
+     flow_check_cf_value_length(this_flow, $4);
+     flow_builder_add_op_val(this_flow, $2 | $3, $4);
+   }
+ | flow_num_opt_ext
+ | flow_num_opts OR flow_num_opt_ext
+ ;
+
+flow_num_opt_ext_expr:
+   expr {
+     flow_check_cf_value_length(this_flow, $1);
+     flow_builder_add_op_val(this_flow, 0b001, $1);
+   }
+ | expr DDOT expr {
+     flow_check_cf_value_length(this_flow, $1);
+     flow_check_cf_value_length(this_flow, $3);
+     flow_builder_add_op_val(this_flow, 0b011, $1); /* >= */
+     flow_builder_add_op_val(this_flow, 0x40 | 0b101, $3); /* AND <= */
+   }
+ ;
+
+flow_num_opt_ext:
+   flow_num_opt_ext_expr
+ | flow_num_opt_ext ',' flow_num_opt_ext_expr
+ ;
+
+flow_bmk_opts:
+   expr '/' expr {
+     flow_check_cf_value_length(this_flow, $1);
+     flow_check_cf_value_length(this_flow, $3);
+     flow_builder_add_val_mask(this_flow, 0, $1, $3);
+   }
+ | flow_bmk_opts flow_logic_op expr '/' expr {
+     flow_check_cf_value_length(this_flow, $3);
+     flow_check_cf_value_length(this_flow, $5);
+     flow_builder_add_val_mask(this_flow, $2, $3, $5);
+   }
+ /* XXX: Kick off ??? */
+ | flow_bmk_op expr {
+     flow_check_cf_value_length(this_flow, $2);
+     flow_builder_add_op_val(this_flow, $1, $2);
+ }
+ | flow_bmk_opts flow_logic_op flow_bmk_op expr {
+     flow_check_cf_value_length(this_flow, $4);
+     flow_builder_add_op_val(this_flow, $2 | $3, $4);
+ }
+ ;
+
+flow4_item:
+   flow_srcdst net_ip {
+     flow_builder_set_type(this_flow, $1);
+     flow_builder4_add_pfx(this_flow, $2);
+   }
+ | flow_num_type flow_num_opts
+ | flow_bmk_type flow_bmk_opts
+ ;
+
+flow6_item:
+   flow_srcdst net_ip6 {
+     flow_builder_set_type(this_flow, $1);
+     flow_builder6_add_pfx(this_flow, $2);
+   }
+ | flow_num_type flow_num_opts
+ | flow_bmk_type flow_bmk_opts
+ ;
+
+flow4_opts:
+   /* empty */
+ | flow4_opts flow4_item ';'
+ ;
+
+flow6_opts:
+ /* empty */
+ | flow6_opts flow6_item ';'
+ ;
+
+flow_builder_init:
+{
+  if (new_config->flow_builder == NULL)
+    new_config->flow_builder = flow_builder_init(new_config->pool);
+
+  this_flow = new_config->flow_builder;
+  flow_builder_clear(this_flow);
+};
+
+flow_builder_set_ipv4: { this_flow->ipv6 = 0; };
+flow_builder_set_ipv6: { this_flow->ipv6 = 1; };
+
+net_flow4_: FLOW4 '{' flow_builder_init flow_builder_set_ipv4 flow4_opts '}'
+{
+  $$ = (net_addr *) flow_builder4_finalize(this_flow, cfg_mem);
+  flow4_validate_cf($$);
+};
+
+net_flow6_: FLOW6 '{' flow_builder_init flow_builder_set_ipv6 flow6_opts '}'
+{
+  $$ = (net_addr *) flow_builder6_finalize(this_flow, cfg_mem);
+  flow6_validate_cf($$);
+};
+
 net_ip_: net_ip4_ | net_ip6_ ;
 net_roa_: net_roa4_ | net_roa6_ ;
+net_flow_: net_flow4_ | net_flow6_  ;
 
 net_:
    net_ip_ { $$ = cfg_alloc($1.length); net_copy($$, &($1)); }
  | net_roa_
+ | net_flow_
  ;
 
 

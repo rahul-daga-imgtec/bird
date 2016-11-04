@@ -29,6 +29,7 @@ struct config {
   char *syslog_name;			/* Name used for syslog (NULL -> no syslog) */
   struct rtable_config *def_tables[NET_MAX]; /* Default routing tables for each network */
   struct iface_patt *router_id_from;	/* Configured list of router ID iface patterns */
+  struct flow_builder *flow_builder;	/* Flow specification bit string builder */
 
   u32 router_id;			/* Our Router ID */
   ip_addr listen_bgp_addr;		/* Listening BGP socket should use this address */

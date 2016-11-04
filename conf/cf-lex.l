@@ -45,6 +45,7 @@
 #include "nest/protocol.h"
 #include "filter/filter.h"
 #include "conf/conf.h"
+#include "lib/flowspec.h"
 #include "conf/cf-parse.tab.h"
 #include "lib/string.h"
 

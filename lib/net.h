@@ -126,7 +126,7 @@ extern const u16 net_addr_length[];
 extern const u8  net_max_prefix_length[];
 extern const u16 net_max_text_length[];
 
-#define NET_MAX_TEXT_LENGTH	65
+#define NET_MAX_TEXT_LENGTH	256
 
 
 #define NET_ADDR_IP4(prefix,pxlen) \
