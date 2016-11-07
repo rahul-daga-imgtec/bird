@@ -122,6 +122,7 @@ const char *flow_validated_state_str(enum flow_validated_state code);
 struct flow_validation flow4_validate(const byte *nlri, uint len);
 struct flow_validation flow6_validate(const byte *nlri, uint len);
 void flow_check_cf_value_length(struct flow_builder *fb, u32 expr);
+void flow_check_cf_bmk_values(struct flow_builder *fb, u32 val, u32 mask);
 void flow4_validate_cf(net_addr *n);
 void flow6_validate_cf(net_addr *n);
 

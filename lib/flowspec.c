@@ -213,6 +213,20 @@ flow_max_value_length(enum flow_type type)
 }
 
 void
+flow_check_cf_bmk_values(struct flow_builder *fb, u32 val, u32 mask)
+{
+  flow_check_cf_value_length(fb, val);
+  flow_check_cf_value_length(fb, mask);
+
+  if (val & ~(u32)mask)
+  {
+    u32  val2 =  val ^ (val & ~mask);
+    u32 mask2 = mask ^ (val & ~mask);
+    cf_error("Value 0x%x outside bitmask 0x%x, did you mean 0x%x/0x%x or 0x%x/0x%x?", val, mask, val, mask2, val2, mask);
+  }
+}
+
+void
 flow_check_cf_value_length(struct flow_builder *fb, u32 expr)
 {
   enum flow_type t = fb->this_type;
