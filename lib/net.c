@@ -45,8 +45,8 @@ const u16 net_max_text_length[] = {
   [NET_VPN6] 	= 65,	/* "4294967296:4294967296 ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128" */
   [NET_ROA4] 	= 34,	/* "255.255.255.255/32-32 AS4294967295" */
   [NET_ROA6] 	= 60,	/* "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128-128 AS4294967295" */
-  [NET_FLOW4] 	= 256,	/* "flow4 { ... }" */
-  [NET_FLOW6] 	= 256	/* "flow6 { ... }" */
+  [NET_FLOW4] 	= 1,	/* "flow4 { ... }" */
+  [NET_FLOW6] 	= 1	/* "flow6 { ... }" */
 };
 
 

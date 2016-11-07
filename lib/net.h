@@ -361,10 +361,10 @@ static inline void net_copy_roa6(net_addr_roa6 *dst, const net_addr_roa6 *src)
 { memcpy(dst, src, sizeof(net_addr_roa6)); }
 
 static inline void net_copy_flow4(net_addr_flow4 *dst, const net_addr_flow4 *src)
-{ memcpy(dst, src, src->length); } /* XXX Use default fallback net_copy() ? */
+{ memcpy(dst, src, src->length); }
 
 static inline void net_copy_flow6(net_addr_flow6 *dst, const net_addr_flow6 *src)
-{ memcpy(dst, src, src->length); } /* XXX Use default fallback net_copy() ? */
+{ memcpy(dst, src, src->length); }
 
 
 static inline u32 net_hash_ip4(const net_addr_ip4 *n)
