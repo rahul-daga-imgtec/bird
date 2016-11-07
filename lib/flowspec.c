@@ -125,8 +125,8 @@ flow_next_part(const byte *pos, const byte *end, int ipv6)
     uint bytes = (pxlen + 7) / 8;
     if (ipv6)
     {
-      uint offset = *pos++;
-      pos += bytes - (offset + 7) / 8;
+      uint pxoffset = *pos++;
+      pos += bytes - (pxoffset + 7) / 8;
     }
     else
     {
@@ -227,16 +227,16 @@ flow_check_cf_bmk_values(struct flow_builder *fb, u32 val, u32 mask)
 }
 
 void
-flow_check_cf_value_length(struct flow_builder *fb, u32 expr)
+flow_check_cf_value_length(struct flow_builder *fb, u32 val)
 {
   enum flow_type t = fb->this_type;
   uint max = flow_max_value_length(t);
 
-  if (max == 1 && (expr > 0xff))
-    cf_error("%s value %u out of range (0-255)", flow_type_str(t, fb->ipv6), expr);
+  if (max == 1 && (val > 0xff))
+    cf_error("%s value %u out of range (0-255)", flow_type_str(t, fb->ipv6), val);
 
-  if (max == 2 && (expr > 0xffff))
-    cf_error("%s value %u out of range (0-65535)", flow_type_str(t, fb->ipv6), expr);
+  if (max == 2 && (val > 0xffff))
+    cf_error("%s value %u out of range (0-65535)", flow_type_str(t, fb->ipv6), val);
 }
 
 static struct flow_validation
@@ -270,11 +270,11 @@ flow_validate(const byte *nlri, uint len, int ipv6)
       uint bytes = (pxlen + 7) / 8;
       if (ipv6)
       {
-        uint offset = *pos;
-        if (offset > IP6_MAX_PREFIX_LENGTH || offset > pxlen)
+        uint pxoffset = *pos;
+        if (pxoffset > IP6_MAX_PREFIX_LENGTH || pxoffset > pxlen)
           return VALIDATION_STATE(FLOW_ST_EXCEED_MAX_PREFIX_LENGTH);
         pos++;
-        bytes -= (offset + 7) / 8;
+        bytes -= (pxoffset + 7) / 8;
       }
       pos += bytes;
 
@@ -413,20 +413,20 @@ push_pfx_to_buffer(struct flow_builder *fb, u8 pxlen, byte *ip)
 {
   u8 pxlen_bytes = (pxlen + 7) / 8;
 
-  BUFFER_PUSH(fb->data) = fb->this_type;
-  BUFFER_PUSH(fb->data) = pxlen;
   for (int i = 0; i < pxlen_bytes; i++)
     BUFFER_PUSH(fb->data) = *ip++;
 }
 
 int
-flow_builder4_add_pfx(struct flow_builder *fb, net_addr n)
+flow_builder4_add_pfx(struct flow_builder *fb, const net_addr_ip4 *n4)
 {
   if (!builder_add_prepare(fb))
     return 0;
 
-  net_addr_ip4 *n4 = (void *) &n;
   ip4_addr ip4 = ip4_hton(n4->prefix);
+
+  BUFFER_PUSH(fb->data) = fb->this_type;
+  BUFFER_PUSH(fb->data) = n4->pxlen;
   push_pfx_to_buffer(fb, n4->pxlen, (void *) &ip4);
 
   builder_add_finish(fb);
@@ -434,14 +434,17 @@ flow_builder4_add_pfx(struct flow_builder *fb, net_addr n)
 }
 
 int
-flow_builder6_add_pfx(struct flow_builder *fb, net_addr n)
+flow_builder6_add_pfx(struct flow_builder *fb, const net_addr_ip6 *n6, u32 pxoffset)
 {
   if (!builder_add_prepare(fb))
     return 0;
 
-  net_addr_ip6 *n6 = (void *) &n;
   ip6_addr ip6 = ip6_hton(n6->prefix);
-  push_pfx_to_buffer(fb, n6->pxlen, (void *) &ip6);
+
+  BUFFER_PUSH(fb->data) = fb->this_type;
+  BUFFER_PUSH(fb->data) = n6->pxlen;
+  BUFFER_PUSH(fb->data) = pxoffset;
+  push_pfx_to_buffer(fb, n6->pxlen - pxoffset, ((byte *) &ip6) + ((pxoffset + 7) / 8));
 
   builder_add_finish(fb);
   return 1;
@@ -521,10 +524,9 @@ static ip6_addr
 flow_read_ip6(const byte *px, uint pxlen, uint pxoffset)
 {
   u32 i1, i2, i3, i4;
-
   i1 = i2 = i3 = i4 = 0;
 
-  for (int l = pxoffset - (pxoffset % 8); l <= (pxlen + 7); l += 8)
+  for (int l = pxoffset - (pxoffset % 8); l < pxlen; l += 8)
   {
     if (l < 32)
       i1 += (*px++) << (24 - l);
@@ -627,7 +629,7 @@ void
 flow6_validate_cf(net_addr *n)
 {
   net_addr_flow6 *n6 = (void *) n;
-  struct flow_validation v = flow4_validate(flow6_first_part(n6), flow_read_length(n6->data));
+  struct flow_validation v = flow6_validate(flow6_first_part(n6), flow_read_length(n6->data));
 
   if (v.result != FLOW_ST_VALID)
     cf_error("Invalid flow route: %s", flow_validated_state_str(v.result));
@@ -664,27 +666,19 @@ logic_op_str(byte op)
   }
 }
 
-static int
-format_flow_value(char *buf, uint blen, const byte *op)
+static u32
+get_value(const byte *op)
 {
-  uint len = get_value_length(op);
-  const void *val = op+1;
-  int chrs = 0;
+  const byte *val = op + 1;
 
-  if (len == 1)
-    chrs = bsnprintf(buf, blen, "0x%02x", *(u8 *)val);
-  if (len == 2)
-    chrs = bsnprintf(buf, blen, "0x%04x", get_u16(val));
-  if (len == 4)
-    chrs = bsnprintf(buf, blen, "0x%08x", get_u32(val));
-
-  if (chrs < 1)
+  switch (get_value_length(op))
   {
-    *buf = 0;
-    return 0;
+  case 1: return *val;
+  case 2: return get_u16(val);
+  case 4: return get_u32(val);
   }
 
-  return chrs;
+  return 0;
 }
 
 static int
@@ -725,7 +719,10 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
       if (ipv6)
       {
 	uint pxoffset = *(part+2);
-	PRINT("%I6/%u-%u; ", flow_read_ip6(part+3,pxlen,pxoffset), pxoffset, pxlen);
+	if (pxoffset)
+	  PRINT("%I6/%u-%u; ", flow_read_ip6(part+3,pxlen,pxoffset), pxoffset, pxlen);
+	else
+	  PRINT("%I6/%u; ", flow_read_ip6(part+3,pxlen,0), pxlen);
       }
       else
       {
@@ -747,8 +744,8 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
     case FLOW_TYPE_LABEL:
     {
       const byte *op = part+1;
-      const void *val;
-      uint val_len = 0;
+      u32 val;
+      uint len;
       uint first = 1;
 
       while (1)
@@ -757,7 +754,8 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  PRINT("%s ", logic_op_str(*op));
 	first = 0;
 
-	val_len = get_value_length(op);
+	val = get_value(op);
+	len = get_value_length(op);
 
 	if (*part == FLOW_TYPE_FRAGMENT || *part == FLOW_TYPE_TCP_FLAGS)
 	{
@@ -773,19 +771,12 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  if ((*op & 0x3) == 0x3 || (*op & 0x3) == 0)
 	    PRINT("!");
 
-	  if (*op & 0x1)
-	    chrs += format_flow_value(buf+chrs, blen-chrs, op);
-	  else
-	    PRINT("0");
-
-	  PRINT("/");
+	  PRINT("0x%x/0x%x", ((*op & 0x1) ? val : 0), val);
 	}
 	else
 	{
-	  PRINT("%s ", num_op_str(*op));
+	  PRINT("%s %u", num_op_str(*op), val);
 	}
-
-	chrs += format_flow_value(buf+chrs, blen-chrs, op);
 
 	/* Check End-bit */
 	if ((*op & 0x80) == 0x80)
@@ -798,7 +789,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  PRINT(" ");
 	}
 
-	op += 1 + val_len;
+	op += 1 + len;
       }
     }
     }

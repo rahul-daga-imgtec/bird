@@ -85,8 +85,8 @@ struct flow_builder {
 struct flow_builder *flow_builder_init(pool *pool);
 void flow_builder_clear(struct flow_builder *fb);
 void flow_builder_set_type(struct flow_builder *fb, enum flow_type p);
-int flow_builder4_add_pfx(struct flow_builder *fb, net_addr n);
-int flow_builder6_add_pfx(struct flow_builder *fb, net_addr n);
+int flow_builder4_add_pfx(struct flow_builder *fb, const net_addr_ip4 *n4);
+int flow_builder6_add_pfx(struct flow_builder *fb, const net_addr_ip6 *n6, u32 offset);
 int flow_builder_add_op_val(struct flow_builder *fb, byte op, u32 value);
 int flow_builder_add_val_mask(struct flow_builder *fb, byte op, u32 value, u32 mask);
 net_addr_flow4 *flow_builder4_finalize(struct flow_builder *fb, linpool *lpool);
