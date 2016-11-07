@@ -239,10 +239,9 @@ flow_check_cf_value_length(struct flow_builder *fb, u32 val)
     cf_error("%s value %u out of range (0-65535)", flow_type_str(t, fb->ipv6), val);
 }
 
-static struct flow_validation
+static enum flow_validated_state
 flow_validate(const byte *nlri, uint len, int ipv6)
 {
-#define VALIDATION_STATE(x) ((struct flow_validation) {x, type, pos})
   enum flow_type type = 0;
   const byte *pos = nlri;
   const byte *end = nlri + len;
@@ -252,7 +251,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
   {
     /* Check increasing type ordering */
     if (*pos <= type)
-      return VALIDATION_STATE(FLOW_ST_BAD_TYPE_ORDER);
+      return FLOW_ST_BAD_TYPE_ORDER;
     type = *pos++;
 
     switch (type)
@@ -264,7 +263,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
     {
       uint pxlen = *pos;
       if (pxlen > (ipv6 ? IP6_MAX_PREFIX_LENGTH : IP4_MAX_PREFIX_LENGTH))
-	return VALIDATION_STATE(FLOW_ST_EXCEED_MAX_PREFIX_LENGTH);
+	return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
       pos++;
 
       uint bytes = (pxlen + 7) / 8;
@@ -272,7 +271,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
       {
         uint pxoffset = *pos;
         if (pxoffset > IP6_MAX_PREFIX_LENGTH || pxoffset > pxlen)
-          return VALIDATION_STATE(FLOW_ST_EXCEED_MAX_PREFIX_LENGTH);
+          return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
         pos++;
         bytes -= (pxoffset + 7) / 8;
       }
@@ -283,7 +282,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 
     case FLOW_TYPE_LABEL:
       if (!ipv6)
-	return VALIDATION_STATE(FLOW_ST_UNKNOWN_COMPONENT);
+	return FLOW_ST_UNKNOWN_COMPONENT;
       /* fall through */
     case FLOW_TYPE_IP_PROTOCOL: /* == FLOW_TYPE_NEXT_HEADER */
     case FLOW_TYPE_PORT:
@@ -314,11 +313,11 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 
 	/* The AND bit should in the first operator byte of a sequence */
 	if (first && (*pos & 0x40))
-	  return VALIDATION_STATE(FLOW_ST_AND_BIT_SHOULD_BE_UNSET);
+	  return FLOW_ST_AND_BIT_SHOULD_BE_UNSET;
 
 	/* This bit should be zero */
 	if (*pos & 0x08)
-	  return VALIDATION_STATE(FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED);
+	  return FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED;
 
 	if (type == FLOW_TYPE_TCP_FLAGS || type == FLOW_TYPE_FRAGMENT)
 	{
@@ -331,47 +330,46 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 	   *           Bitmask operand
 	   */
 	  if (*pos & 0x04)
-	    return VALIDATION_STATE(FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED);
+	    return FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED;
 	}
 
 	/* Value length of operator */
 	uint len = get_value_length(pos);
 	if (len > flow_max_value_length(type))
-	  return VALIDATION_STATE(FLOW_ST_EXCEED_MAX_VALUE_LENGTH);
+	  return FLOW_ST_EXCEED_MAX_VALUE_LENGTH;
 	pos += 1+len;
 
 	if (pos > end && !last)
-	  return VALIDATION_STATE(FLOW_ST_NOT_COMPLETE);
+	  return FLOW_ST_NOT_COMPLETE;
 
 	if (pos > (end+1))
-	  return VALIDATION_STATE(FLOW_ST_NOT_COMPLETE);
+	  return FLOW_ST_NOT_COMPLETE;
 
 	first = 0;
       }
       break;
     }
     default:
-      return VALIDATION_STATE(FLOW_ST_UNKNOWN_COMPONENT);
+      return FLOW_ST_UNKNOWN_COMPONENT;
     }
   }
 
   if (pos != end)
-    return VALIDATION_STATE(FLOW_ST_NOT_COMPLETE);
+    return FLOW_ST_NOT_COMPLETE;
 
   if (!ipv6 && !met_dst_pfx)
-    return VALIDATION_STATE(FLOW_ST_DEST_PREFIX_REQUIRED);
+    return FLOW_ST_DEST_PREFIX_REQUIRED;
 
-  return VALIDATION_STATE(FLOW_ST_VALID);
-#undef VALIDATION_STATE
+  return FLOW_ST_VALID;
 }
 
-inline struct flow_validation
+inline enum flow_validated_state
 flow4_validate(const byte *nlri, uint len)
 {
   return flow_validate(nlri, len, 0);
 }
 
-inline struct flow_validation
+inline enum flow_validated_state
 flow6_validate(const byte *nlri, uint len)
 {
   return flow_validate(nlri, len, 1);
@@ -619,20 +617,20 @@ void
 flow4_validate_cf(net_addr *n)
 {
   net_addr_flow4 *n4 = (void *) n;
-  struct flow_validation v = flow4_validate(flow4_first_part(n4), flow_read_length(n4->data));
+  enum flow_validated_state r = flow4_validate(flow4_first_part(n4), flow_read_length(n4->data));
 
-  if (v.result != FLOW_ST_VALID)
-    cf_error("Invalid flow route: %s", flow_validated_state_str(v.result));
+  if (r != FLOW_ST_VALID)
+    cf_error("Invalid flow route: %s", flow_validated_state_str(r));
 }
 
 void
 flow6_validate_cf(net_addr *n)
 {
   net_addr_flow6 *n6 = (void *) n;
-  struct flow_validation v = flow6_validate(flow6_first_part(n6), flow_read_length(n6->data));
+  enum flow_validated_state r = flow6_validate(flow6_first_part(n6), flow_read_length(n6->data));
 
-  if (v.result != FLOW_ST_VALID)
-    cf_error("Invalid flow route: %s", flow_validated_state_str(v.result));
+  if (r != FLOW_ST_VALID)
+    cf_error("Invalid flow route: %s", flow_validated_state_str(r));
 }
 
 

@@ -110,17 +110,9 @@ enum flow_validated_state {
   FLOW_ST_DEST_PREFIX_REQUIRED,
 };
 
-/* Data-structure used as result from validation */
-struct flow_validation {
-  enum flow_validated_state result;
-  enum flow_type last_type;
-  const byte *last_pos;
-};
-/* XXX Validation functions should (maybe) return only enum flow_validated_state */
-
 const char *flow_validated_state_str(enum flow_validated_state code);
-struct flow_validation flow4_validate(const byte *nlri, uint len);
-struct flow_validation flow6_validate(const byte *nlri, uint len);
+enum flow_validated_state flow4_validate(const byte *nlri, uint len);
+enum flow_validated_state flow6_validate(const byte *nlri, uint len);
 void flow_check_cf_value_length(struct flow_builder *fb, u32 expr);
 void flow_check_cf_bmk_values(struct flow_builder *fb, u32 val, u32 mask);
 void flow4_validate_cf(net_addr *n);
