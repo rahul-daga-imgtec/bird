@@ -22,10 +22,31 @@ static const char* flow_validated_state_str_[] = {
   [FLOW_ST_DEST_PREFIX_REQUIRED] 	= "Destination prefix is required to define"
 };
 
-static const char* flow_type_str_[] = {
+const char *
+flow_validated_state_str(enum flow_validated_state code)
+{
+  return flow_validated_state_str_[code];
+}
+
+static const char* flow4_type_str[] = {
   [FLOW_TYPE_DST_PREFIX]		= "dst",
   [FLOW_TYPE_SRC_PREFIX]		= "src",
   [FLOW_TYPE_IP_PROTOCOL]		= "proto",
+  [FLOW_TYPE_PORT]			= "port",
+  [FLOW_TYPE_DST_PORT]			= "dport",
+  [FLOW_TYPE_SRC_PORT]			= "sport",
+  [FLOW_TYPE_ICMP_TYPE]			= "icmp type",
+  [FLOW_TYPE_ICMP_CODE]			= "icmp code",
+  [FLOW_TYPE_TCP_FLAGS]			= "tcp flags",
+  [FLOW_TYPE_PACKET_LENGTH]		= "length",
+  [FLOW_TYPE_DSCP]			= "dscp",
+  [FLOW_TYPE_FRAGMENT]			= "fragment"
+};
+
+static const char* flow6_type_str[] = {
+  [FLOW_TYPE_DST_PREFIX]		= "dst",
+  [FLOW_TYPE_SRC_PREFIX]		= "src",
+  [FLOW_TYPE_NEXT_HEADER]		= "next header",
   [FLOW_TYPE_PORT]			= "port",
   [FLOW_TYPE_DST_PORT]			= "dport",
   [FLOW_TYPE_SRC_PORT]			= "sport",
@@ -39,18 +60,9 @@ static const char* flow_type_str_[] = {
 };
 
 const char *
-flow_validated_state_str(enum flow_validated_state code)
-{
-  return flow_validated_state_str_[code];
-}
-
-const char *
 flow_type_str(enum flow_type type, int ipv6)
 {
-  if (ipv6 && type == FLOW_TYPE_IP_PROTOCOL)
-    return "next header";
-
-  return flow_type_str_[type];
+  return ipv6 ? flow6_type_str[type] : flow4_type_str[type];
 }
 
 /**
@@ -184,32 +196,41 @@ flow6_next_part(const byte *pos, const byte *end)
  * 	Flowspec validation
  */
 
-static uint
-flow_max_value_length(enum flow_type type)
+static const u8 flow4_max_value_length[] = {
+  [FLOW_TYPE_DST_PREFIX]		= 0,
+  [FLOW_TYPE_SRC_PREFIX]		= 0,
+  [FLOW_TYPE_IP_PROTOCOL]		= 1,
+  [FLOW_TYPE_PORT]			= 2,
+  [FLOW_TYPE_DST_PORT]			= 2,
+  [FLOW_TYPE_SRC_PORT]			= 2,
+  [FLOW_TYPE_ICMP_TYPE]			= 1,
+  [FLOW_TYPE_ICMP_CODE]			= 1,
+  [FLOW_TYPE_TCP_FLAGS]			= 2,
+  [FLOW_TYPE_PACKET_LENGTH]		= 2,
+  [FLOW_TYPE_DSCP]			= 1,
+  [FLOW_TYPE_FRAGMENT]			= 2
+};
+
+static const u8 flow6_max_value_length[] = {
+  [FLOW_TYPE_DST_PREFIX]		= 0,
+  [FLOW_TYPE_SRC_PREFIX]		= 0,
+  [FLOW_TYPE_NEXT_HEADER]		= 1,
+  [FLOW_TYPE_PORT]			= 2,
+  [FLOW_TYPE_DST_PORT]			= 2,
+  [FLOW_TYPE_SRC_PORT]			= 2,
+  [FLOW_TYPE_ICMP_TYPE]			= 1,
+  [FLOW_TYPE_ICMP_CODE]			= 1,
+  [FLOW_TYPE_TCP_FLAGS]			= 2,
+  [FLOW_TYPE_PACKET_LENGTH]		= 2,
+  [FLOW_TYPE_DSCP]			= 1,
+  [FLOW_TYPE_FRAGMENT]			= 2,
+  [FLOW_TYPE_LABEL]			= 4
+};
+
+static u8
+flow_max_value_length(enum flow_type type, int ipv6)
 {
-  switch (type)
-  {
-  case FLOW_TYPE_IP_PROTOCOL: /* == FLOW_TYPE_NEXT_HEADER */
-  case FLOW_TYPE_ICMP_TYPE:
-  case FLOW_TYPE_ICMP_CODE:
-  case FLOW_TYPE_DSCP:
-    return 1;
-
-  case FLOW_TYPE_PORT:
-  case FLOW_TYPE_DST_PORT:
-  case FLOW_TYPE_SRC_PORT:
-  case FLOW_TYPE_PACKET_LENGTH:
-  /* Bitmask values can be encoded as a 1- or 2-byte bitmask */
-  case FLOW_TYPE_TCP_FLAGS:
-  case FLOW_TYPE_FRAGMENT:
-    return 2;
-
-  case FLOW_TYPE_LABEL:
-    return 4;
-
-  default:
-    return 0;
-  }
+  return ipv6 ? flow6_max_value_length[type] : flow4_max_value_length[type];
 }
 
 void
@@ -230,7 +251,7 @@ void
 flow_check_cf_value_length(struct flow_builder *fb, u32 val)
 {
   enum flow_type t = fb->this_type;
-  uint max = flow_max_value_length(t);
+  u8 max = flow_max_value_length(t, fb->ipv6);
 
   if (max == 1 && (val > 0xff))
     cf_error("%s value %u out of range (0-255)", flow_type_str(t, fb->ipv6), val);
@@ -335,7 +356,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 
 	/* Value length of operator */
 	uint len = get_value_length(pos);
-	if (len > flow_max_value_length(type))
+	if (len > flow_max_value_length(type, ipv6))
 	  return FLOW_ST_EXCEED_MAX_VALUE_LENGTH;
 	pos += 1+len;
 
