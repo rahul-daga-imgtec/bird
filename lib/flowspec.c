@@ -512,31 +512,21 @@ flow_builder_set_type(struct flow_builder *fb, enum flow_type p)
 static ip4_addr
 flow_read_ip4(const byte *px, uint pxlen)
 {
-  return ip4_build((pxlen >  0 ? *px++ : 0),
-		   (pxlen >  8 ? *px++ : 0),
-		   (pxlen > 16 ? *px++ : 0),
-		   (pxlen > 24 ? *px++ : 0));
+  ip4_addr ip = IP4_NONE;
+  memcpy(&ip, px, BYTES(pxlen));
+  return ip4_ntoh(ip);
 }
 
 static ip6_addr
 flow_read_ip6(const byte *px, uint pxlen, uint pxoffset)
 {
-  u32 i1, i2, i3, i4;
-  i1 = i2 = i3 = i4 = 0;
+  uint floor_offset = BYTES(pxoffset - (pxoffset % 8));
+  uint ceil_len = BYTES(pxlen);
+  ip6_addr ip = IP6_NONE;
 
-  for (int l = pxoffset - (pxoffset % 8); l < pxlen; l += 8)
-  {
-    if (l < 32)
-      i1 += (*px++) << (24 - l);
-    else if (l < 64)
-      i2 += (*px++) << (24 - l % 32);
-    else if (l < 96)
-      i3 += (*px++) << (24 - l % 32);
-    else
-      i4 += (*px++) << (24 - l % 32);
-  }
+  memcpy(((byte *) &ip) + floor_offset, px, ceil_len - floor_offset);
 
-  return ip6_build(i1, i2, i3, i4);
+  return ip6_ntoh(ip);
 }
 
 static void
