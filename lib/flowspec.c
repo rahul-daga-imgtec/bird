@@ -137,8 +137,8 @@ flow_next_part(const byte *pos, const byte *end, int ipv6)
     uint bytes = BYTES(pxlen);
     if (ipv6)
     {
-      uint pxoffset = *pos++;
-      pos += bytes - BYTES(pxoffset);
+      uint offset = *pos++ / 8;
+      pos += bytes - offset;
     }
     else
     {
@@ -278,19 +278,17 @@ flow_validate(const byte *nlri, uint len, int ipv6)
       /* Fall through */
     case FLOW_TYPE_SRC_PREFIX:
     {
-      uint pxlen = *pos;
+      uint pxlen = *pos++;
       if (pxlen > (ipv6 ? IP6_MAX_PREFIX_LENGTH : IP4_MAX_PREFIX_LENGTH))
 	return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
-      pos++;
 
       uint bytes = BYTES(pxlen);
       if (ipv6)
       {
-        uint pxoffset = *pos;
+        uint pxoffset = *pos++;
         if (pxoffset > IP6_MAX_PREFIX_LENGTH || pxoffset > pxlen)
           return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
-        pos++;
-        bytes -= BYTES(pxoffset);
+        bytes -= pxoffset / 8;
       }
       pos += bytes;
 
@@ -424,10 +422,8 @@ builder_add_finish(struct flow_builder *fb)
 }
 
 static void
-push_pfx_to_buffer(struct flow_builder *fb, u8 pxlen, byte *ip)
+push_pfx_to_buffer(struct flow_builder *fb, u8 pxlen_bytes, byte *ip)
 {
-  u8 pxlen_bytes = BYTES(pxlen);
-
   for (int i = 0; i < pxlen_bytes; i++)
     BUFFER_PUSH(fb->data) = *ip++;
 }
@@ -442,7 +438,7 @@ flow_builder4_add_pfx(struct flow_builder *fb, const net_addr_ip4 *n4)
 
   BUFFER_PUSH(fb->data) = fb->this_type;
   BUFFER_PUSH(fb->data) = n4->pxlen;
-  push_pfx_to_buffer(fb, n4->pxlen, (void *) &ip4);
+  push_pfx_to_buffer(fb, BYTES(n4->pxlen), (byte *) &ip4);
 
   builder_add_finish(fb);
   return 1;
@@ -459,7 +455,7 @@ flow_builder6_add_pfx(struct flow_builder *fb, const net_addr_ip6 *n6, u32 pxoff
   BUFFER_PUSH(fb->data) = fb->this_type;
   BUFFER_PUSH(fb->data) = n6->pxlen;
   BUFFER_PUSH(fb->data) = pxoffset;
-  push_pfx_to_buffer(fb, n6->pxlen - pxoffset, ((byte *) &ip6) + BYTES(pxoffset));
+  push_pfx_to_buffer(fb, BYTES(n6->pxlen) - (pxoffset / 8), ((byte *) &ip6) + (pxoffset / 8));
 
   builder_add_finish(fb);
   return 1;
@@ -537,11 +533,11 @@ flow_read_ip4(const byte *px, uint pxlen)
 static ip6_addr
 flow_read_ip6(const byte *px, uint pxlen, uint pxoffset)
 {
-  uint floor_offset = BYTES(pxoffset - (pxoffset % 8));
-  uint ceil_len = BYTES(pxlen);
+  uint offset = pxoffset / 8;
+  uint len = BYTES(pxlen);
   ip6_addr ip = IP6_NONE;
 
-  memcpy(((byte *) &ip) + floor_offset, px, ceil_len - floor_offset);
+  memcpy(((byte *) &ip) + offset, px, len - offset);
 
   return ip6_ntoh(ip);
 }
