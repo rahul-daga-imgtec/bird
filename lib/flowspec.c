@@ -607,17 +607,12 @@ flow_builder6_finalize(struct flow_builder *fb, linpool *lpool)
 void
 flow_builder_clear(struct flow_builder *fb)
 {
+  BUFFER(byte) data;
   BUFFER_FLUSH(fb->data);
 
-  byte *data = fb->data.data;
-  uint size = fb->data.size;
-  uint used = fb->data.used;
-
+  BUFFER_SHALLOW_COPY(data, fb->data);
   memset(fb, 0, sizeof(struct flow_builder));
-
-  fb->data.data = data;
-  fb->data.size = size;
-  fb->data.used = used;
+  BUFFER_SHALLOW_COPY(fb->data, data);
 }
 
 void
