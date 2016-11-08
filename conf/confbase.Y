@@ -343,11 +343,10 @@ flow6_opts:
 
 flow_builder_init:
 {
-  if (new_config->flow_builder == NULL)
-    new_config->flow_builder = flow_builder_init(new_config->pool);
-
-  this_flow = new_config->flow_builder;
-  flow_builder_clear(this_flow);
+  if (this_flow == NULL)
+    this_flow = flow_builder_init(&root_pool);
+  else
+    flow_builder_clear(this_flow);
 };
 
 flow_builder_set_ipv4: { this_flow->ipv6 = 0; };
