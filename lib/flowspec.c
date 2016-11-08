@@ -122,11 +122,11 @@ flow_next_part(const byte *pos, const byte *end, int ipv6)
   case FLOW_TYPE_SRC_PREFIX:
   {
     uint pxlen = *pos++;
-    uint bytes = (pxlen + 7) / 8;
+    uint bytes = BYTES(pxlen);
     if (ipv6)
     {
       uint pxoffset = *pos++;
-      pos += bytes - (pxoffset + 7) / 8;
+      pos += bytes - BYTES(pxoffset);
     }
     else
     {
@@ -266,14 +266,14 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 	return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
       pos++;
 
-      uint bytes = (pxlen + 7) / 8;
+      uint bytes = BYTES(pxlen);
       if (ipv6)
       {
         uint pxoffset = *pos;
         if (pxoffset > IP6_MAX_PREFIX_LENGTH || pxoffset > pxlen)
           return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
         pos++;
-        bytes -= (pxoffset + 7) / 8;
+        bytes -= BYTES(pxoffset);
       }
       pos += bytes;
 
@@ -409,7 +409,7 @@ builder_add_finish(struct flow_builder *fb)
 static void
 push_pfx_to_buffer(struct flow_builder *fb, u8 pxlen, byte *ip)
 {
-  u8 pxlen_bytes = (pxlen + 7) / 8;
+  u8 pxlen_bytes = BYTES(pxlen);
 
   for (int i = 0; i < pxlen_bytes; i++)
     BUFFER_PUSH(fb->data) = *ip++;
@@ -442,7 +442,7 @@ flow_builder6_add_pfx(struct flow_builder *fb, const net_addr_ip6 *n6, u32 pxoff
   BUFFER_PUSH(fb->data) = fb->this_type;
   BUFFER_PUSH(fb->data) = n6->pxlen;
   BUFFER_PUSH(fb->data) = pxoffset;
-  push_pfx_to_buffer(fb, n6->pxlen - pxoffset, ((byte *) &ip6) + ((pxoffset + 7) / 8));
+  push_pfx_to_buffer(fb, n6->pxlen - pxoffset, ((byte *) &ip6) + BYTES(pxoffset));
 
   builder_add_finish(fb);
   return 1;

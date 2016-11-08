@@ -34,6 +34,7 @@
 #define ABS(a)   ((a)>=0 ? (a) : -(a))
 #define DELTA(a,b) (((a)>=(b))?(a)-(b):(b)-(a))
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
+#define BYTES(n) ((((uint) (n)) + 7) / 8)
 #define CALL(fn, args...) ({ if (fn) fn(args); })
 
 static inline int uint_cmp(uint i1, uint i2)
