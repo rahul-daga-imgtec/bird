@@ -274,10 +274,11 @@ static inline int net_equal_roa6(const net_addr_roa6 *a, const net_addr_roa6 *b)
 { return !memcmp(a, b, sizeof(net_addr_roa6)); }
 
 static inline int net_equal_flow4(const net_addr_flow4 *a, const net_addr_flow4 *b)
-{ return !memcmp(a, b, sizeof(net_addr_flow4)); }
+{ return net_equal((const net_addr *) a, (const net_addr *) b); }
 
 static inline int net_equal_flow6(const net_addr_flow6 *a, const net_addr_flow6 *b)
-{ return !memcmp(a, b, sizeof(net_addr_flow6)); }
+{ return net_equal((const net_addr *) a, (const net_addr *) b); }
+
 
 static inline int net_equal_prefix_roa4(const net_addr_roa4 *a, const net_addr_roa4 *b)
 { return ip4_equal(a->prefix, b->prefix) && (a->pxlen == b->pxlen); }
@@ -334,7 +335,7 @@ static inline int net_compare_flow4(const net_addr_flow4 *a, const net_addr_flow
 { return ip4_compare(a->prefix, b->prefix) ?: uint_cmp(a->pxlen, b->pxlen) ?: uint_cmp(a->length, b->length) ?: memcmp(a->data, b->data, a->length - sizeof(net_addr_flow4)); }
 
 static inline int net_compare_flow6(const net_addr_flow6 *a, const net_addr_flow6 *b)
-{ return ip6_compare(a->prefix, b->prefix) ?: uint_cmp(a->pxlen, b->pxlen) ?: uint_cmp(a->length, b->length) ?: memcmp(a->data, b->data, a->length - sizeof(net_addr_flow4)); }
+{ return ip6_compare(a->prefix, b->prefix) ?: uint_cmp(a->pxlen, b->pxlen) ?: uint_cmp(a->length, b->length) ?: memcmp(a->data, b->data, a->length - sizeof(net_addr_flow6)); }
 
 int net_compare(const net_addr *a, const net_addr *b);
 
