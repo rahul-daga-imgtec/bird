@@ -15,6 +15,7 @@ static const char* flow_validated_state_str_[] = {
   [FLOW_ST_VALID] 			= "Valid",
   [FLOW_ST_NOT_COMPLETE] 		= "Not complete",
   [FLOW_ST_EXCEED_MAX_PREFIX_LENGTH] 	= "Exceed maximal prefix length",
+  [FLOW_ST_EXCEED_MAX_PREFIX_OFFSET]	= "Exceed maximal prefix offset",
   [FLOW_ST_EXCEED_MAX_VALUE_LENGTH]	= "Exceed maximal value length",
   [FLOW_ST_BAD_TYPE_ORDER] 		= "Bad component order",
   [FLOW_ST_AND_BIT_SHOULD_BE_UNSET] 	= "The AND-bit should be unset",
@@ -287,7 +288,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
       {
         uint pxoffset = *pos++;
         if (pxoffset > IP6_MAX_PREFIX_LENGTH || pxoffset > pxlen)
-          return FLOW_ST_EXCEED_MAX_PREFIX_LENGTH;
+          return FLOW_ST_EXCEED_MAX_PREFIX_OFFSET;
         bytes -= pxoffset / 8;
       }
       pos += bytes;
