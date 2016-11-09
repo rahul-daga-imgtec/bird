@@ -174,7 +174,7 @@ t_iterators6(void)
 static int
 t_validation4(void)
 {
-  struct flow_validation v;
+  enum flow_validated_state res;
 
   byte nlri1[] = {
     FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
@@ -185,87 +185,93 @@ t_validation4(void)
   };
 
   /* Isn't included destination prefix */
-  v = flow4_validate(nlri1, 0);
-  bt_assert(v.result == FLOW_ST_DEST_PREFIX_REQUIRED);
-  v = flow4_validate(&nlri1[5], sizeof(nlri1)-5);
-  bt_assert(v.result == FLOW_ST_DEST_PREFIX_REQUIRED);
+  res = flow4_validate(nlri1, 0);
+  bt_assert(res == FLOW_ST_DEST_PREFIX_REQUIRED);
+  res = flow4_validate(&nlri1[5], sizeof(nlri1)-5);
+  bt_assert(res == FLOW_ST_DEST_PREFIX_REQUIRED);
 
   /* Valid / Not Complete testing */
   uint valid_sizes[] = {5, 11, 14, 22, 25, 0};
   uint valid_idx = 0;
   for (uint size = 1; size <= sizeof(nlri1); size++)
   {
-    v = flow4_validate(nlri1, size);
-    bt_debug("size %u, result: %s\n", size, flow_validated_state_str(v.result));
+    res = flow4_validate(nlri1, size);
+    bt_debug("size %u, result: %s\n", size, flow_validated_state_str(res));
     if (size == valid_sizes[valid_idx])
     {
       valid_idx++;
-      bt_assert(v.result == FLOW_ST_VALID);
+      bt_assert(res == FLOW_ST_VALID);
     }
     else
     {
-      bt_assert(v.result == FLOW_ST_NOT_COMPLETE);
+      bt_assert(res == FLOW_ST_NOT_COMPLETE);
     }
   }
 
   /* Misc err tests */
-  struct {
-    char *description;
+
+  struct tset {
     enum flow_validated_state expect;
-    byte nlri[1024]; /* Use strlen() for length, so please don't use null bytes. */
-  } tset[] = {
-    {
-      .description = "33-length IPv4 prefix",
-      .nlri = {
-	FLOW_TYPE_DST_PREFIX, 33, 5, 6, 7, 8, 9,
-      },
-      .expect = FLOW_ST_EXCEED_MAX_PREFIX_LENGTH,
-    },
-    {
-      .description = "Bad flowspec component type order",
-      .nlri = {
+    char *description;
+    u16 size;
+    byte *nlri;
+  };
+
+#define TS(type, msg, data) ((struct tset) {type, msg, sizeof(data), (data)})
+  struct tset tset[] = {
+    TS(
+      FLOW_ST_EXCEED_MAX_PREFIX_LENGTH,
+      "33-length IPv4 prefix",
+      ((byte []) {
+	FLOW_TYPE_DST_PREFIX, 33, 5, 6, 7, 8, 9
+      })
+    ),
+    TS(
+      FLOW_ST_BAD_TYPE_ORDER,
+      "Bad flowspec component type order",
+      ((byte []) {
 	FLOW_TYPE_SRC_PREFIX, 32, 10, 11, 12, 13,
 	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
-      },
-      .expect = FLOW_ST_BAD_TYPE_ORDER,
-    },
-    {
-      .description = "Doubled destination prefix component",
-      .nlri = {
+      })
+    ),
+    TS(
+      FLOW_ST_BAD_TYPE_ORDER,
+      "Doubled destination prefix component",
+      ((byte []) {
 	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
 	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
-      },
-      .expect = FLOW_ST_BAD_TYPE_ORDER
-    },
-    {
-      .description = "The first numeric operator has set the AND bit",
-      .nlri = {
+      })
+    ),
+    TS(
+      FLOW_ST_AND_BIT_SHOULD_BE_UNSET,
+      "The first numeric operator has set the AND bit",
+      ((byte []) {
 	FLOW_TYPE_PORT, 0x43, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90,
-      },
-      .expect = FLOW_ST_AND_BIT_SHOULD_BE_UNSET,
-    },
-    {
-      .description = "Set zero bit in operand to one",
-      .nlri = {
+      })
+    ),
+    TS(
+      FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED,
+      "Set zero bit in operand to one",
+      ((byte []) {
 	FLOW_TYPE_IP_PROTOCOL, 0x89, 0x06,
-      },
-      .expect = FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED,
-    },
-    {
-      .description = "Unknown component of type number 13",
-      .nlri = {
+      })
+    ),
+    TS(
+      FLOW_ST_UNKNOWN_COMPONENT,
+      "Unknown component of type number 13",
+      ((byte []) {
 	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
 	FLOW_TYPE_TCP_FLAGS, 0x80, 0x55,
 	13 /*something new*/, 0x80, 0x55,
-      },
-      .expect = FLOW_ST_UNKNOWN_COMPONENT,
-    }
+      })
+    ),
   };
+#undef TS
 
-  for(uint tcase = 0; tcase < ARRAY_SIZE(tset); tcase++)
+  for (uint tcase = 0; tcase < ARRAY_SIZE(tset); tcase++)
   {
-    v = flow4_validate(tset[tcase].nlri, strlen(tset[tcase].nlri));
-    bt_assert_msg(v.result == tset[tcase].expect, "Assertion (%s == %s) %s", flow_validated_state_str(v.result), flow_validated_state_str(tset[tcase].expect), tset[tcase].description);
+    res = flow4_validate(tset[tcase].nlri, tset[tcase].size);
+    bt_assert_msg(res == tset[tcase].expect, "Assertion (%s == %s) %s", flow_validated_state_str(res), flow_validated_state_str(tset[tcase].expect), tset[tcase].description);
   }
 
   return BT_SUCCESS;
@@ -274,157 +280,159 @@ t_validation4(void)
 static int
 t_validation6(void)
 {
-  struct flow_validation v;
+  enum flow_validated_state res;
 
   byte nlri1[] = {
-    FLOW_TYPE_DST_PREFIX, 0x68, 0x40, 0x12, 0x34, 0x56, 0x78, 0x9a,
-    FLOW_TYPE_SRC_PREFIX, 0x08, 0x0, 0xc0,
+    FLOW_TYPE_DST_PREFIX, 103, 61, 0x01, 0x12, 0x34, 0x56, 0x78, 0x98,
+    FLOW_TYPE_SRC_PREFIX, 8, 0, 0xc0,
     FLOW_TYPE_NEXT_HEADER, 0x81, 0x06,
     FLOW_TYPE_PORT, 0x03, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90,
     FLOW_TYPE_LABEL, 0x80, 0x55,
   };
 
   /* Isn't included destination prefix */
-  v = flow6_validate(nlri1, 0);
-  bt_assert(v.result == FLOW_ST_VALID);
+  res = flow6_validate(nlri1, 0);
+  bt_assert(res == FLOW_ST_VALID);
 
   /* Valid / Not Complete testing */
-  uint valid_sizes[] = {0, 8, 12, 15, 23, 26, 0};
+  uint valid_sizes[] = {0, 9, 13, 16, 24, 27, 0};
   uint valid_idx = 0;
   for (uint size = 0; size <= sizeof(nlri1); size++)
   {
-    v = flow6_validate(nlri1, size);
-    bt_debug("size %u, result: %s\n", size, flow_validated_state_str(v.result));
+    res = flow6_validate(nlri1, size);
+    bt_debug("size %u, result: %s\n", size, flow_validated_state_str(res));
     if (size == valid_sizes[valid_idx])
     {
       valid_idx++;
-      bt_assert(v.result == FLOW_ST_VALID);
+      bt_assert(res == FLOW_ST_VALID);
     }
     else
     {
-      bt_assert(v.result == FLOW_ST_NOT_COMPLETE);
+      bt_assert(res == FLOW_ST_NOT_COMPLETE);
     }
   }
 
   /* Misc err tests */
-  struct {
-    char *description;
+
+  struct tset {
     enum flow_validated_state expect;
-    byte nlri[1024]; /* Use strlen() for length, so please don't use null bytes. */
-  } tset[] = {
-    {
-      .description = "129-length IPv6 prefix",
-      .nlri = {
-	FLOW_TYPE_DST_PREFIX, 129, 0x40, 0x12, 0x34, 0x56, 0x78, 0x9a,
-      },
-      .expect = FLOW_ST_EXCEED_MAX_PREFIX_LENGTH,
-    },
-    {
-      .description = "Bad flowspec component type order",
-      .nlri = {
-	FLOW_TYPE_SRC_PREFIX, 32, 24, 13,
-	FLOW_TYPE_DST_PREFIX, 24, 16, 5,
-      },
-      .expect = FLOW_ST_BAD_TYPE_ORDER,
-    },
-    {
-      .description = "Doubled destination prefix component",
-      .nlri = {
-	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
-	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
-      },
-      .expect = FLOW_ST_BAD_TYPE_ORDER
-    },
-    {
-      .description = "The first numeric operator has set the AND bit",
-      .nlri = {
-	FLOW_TYPE_PORT, 0x43, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90,
-      },
-      .expect = FLOW_ST_AND_BIT_SHOULD_BE_UNSET,
-    },
-    {
-      .description = "Set zero bit in operand to one",
-      .nlri = {
-	FLOW_TYPE_IP_PROTOCOL, 0x89, 0x06,
-      },
-      .expect = FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED,
-    },
-    {
-      .description = "Component of type number 13 (Label) is well-known in IPv6",
-      .nlri = {
-	FLOW_TYPE_DST_PREFIX, 32, 8, 5, 6, 7,
-	FLOW_TYPE_TCP_FLAGS, 0x80, 0x55,
-	FLOW_TYPE_LABEL, 0x80, 0x55,
-      },
-      .expect = FLOW_ST_VALID,
-    },
-    {
-      .description = "Unknown component of type number 14",
-      .nlri = {
-	FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
-	FLOW_TYPE_TCP_FLAGS, 0x80, 0x55,
-	14 /*something new*/, 0x80, 0x55,
-      },
-      .expect = FLOW_ST_UNKNOWN_COMPONENT,
-    }
+    char *description;
+    u16 size;
+    byte *nlri;
   };
 
-  for(uint tcase = 0; tcase < ARRAY_SIZE(tset); tcase++)
+#define TS(type, msg, data) ((struct tset) {type, msg, sizeof(data), (data)})
+  struct tset tset[] = {
+    TS(
+      FLOW_ST_EXCEED_MAX_PREFIX_LENGTH,
+      "129-length IPv6 prefix",
+      ((byte []) {
+	FLOW_TYPE_DST_PREFIX, 129, 64, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12
+      })
+    ),
+    TS(
+      FLOW_ST_EXCEED_MAX_PREFIX_OFFSET,
+      "Prefix offset is higher than prefix length",
+      ((byte []) {
+	FLOW_TYPE_DST_PREFIX, 48, 64, 0x40, 0x12, 0x34
+      })
+    ),
+    TS(
+      FLOW_ST_BAD_TYPE_ORDER,
+      "Bad flowspec component type order",
+      ((byte []) {
+	FLOW_TYPE_NEXT_HEADER, 0x81, 0x06,
+	FLOW_TYPE_SRC_PREFIX, 8, 0, 0xc0,
+      })
+    ),
+    TS(
+      FLOW_ST_BAD_TYPE_ORDER,
+      "Doubled destination prefix component",
+      ((byte []) {
+	FLOW_TYPE_DST_PREFIX, 103, 61, 0x01, 0x12, 0x34, 0x56, 0x78, 0x98,
+	FLOW_TYPE_DST_PREFIX, 103, 61, 0x01, 0x12, 0x34, 0x56, 0x78, 0x98,
+      })
+    ),
+    TS(
+      FLOW_ST_AND_BIT_SHOULD_BE_UNSET,
+      "The first numeric operator has set the AND bit",
+      ((byte []) {
+	FLOW_TYPE_PORT, 0x43, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90
+      })
+    ),
+    TS(
+      FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED,
+      "Set zero bit in operand to one",
+      ((byte []) {
+	FLOW_TYPE_NEXT_HEADER, 0x89, 0x06
+      })
+    ),
+    TS(
+      FLOW_ST_VALID,
+      "Component of type number 13 (Label) is well-known in IPv6",
+      ((byte []) {
+	FLOW_TYPE_LABEL, 0x80, 0x55
+      })
+    ),
+    TS(
+      FLOW_ST_UNKNOWN_COMPONENT,
+      "Unknown component of type number 14",
+      ((byte []) {
+	FLOW_TYPE_LABEL, 0x80, 0x55,
+	14 /*something new*/, 0x80, 0x55,
+      })
+    )
+  };
+#undef TS
+
+  for (uint tcase = 0; tcase < ARRAY_SIZE(tset); tcase++)
   {
-    v = flow6_validate(tset[tcase].nlri, strlen(tset[tcase].nlri));
-    bt_assert_msg(v.result == tset[tcase].expect, "Assertion (%s == %s) %s", flow_validated_state_str(v.result), flow_validated_state_str(tset[tcase].expect), tset[tcase].description);
+    res = flow6_validate(tset[tcase].nlri, tset[tcase].size);
+    bt_assert_msg(res == tset[tcase].expect, "Assertion (%s == %s) %s", flow_validated_state_str(res), flow_validated_state_str(tset[tcase].expect), tset[tcase].description);
   }
 
   return BT_SUCCESS;
 }
 
+
+
+/*
+ * 	Builder tests
+ */
+
 static int
 t_builder4(void)
 {
   resource_init();
-  linpool *lp = lp_new(&root_pool, 4096);
-
-#define SIZE 25
-#define LINE1 FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7
-#define LINE2 FLOW_TYPE_SRC_PREFIX, 32, 10, 11, 12, 13
-#define LINE3 FLOW_TYPE_IP_PROTOCOL, 0x80, 0x06
-#define LINE4 FLOW_TYPE_PORT, 0x03, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90
-#define LINE5 FLOW_TYPE_TCP_FLAGS, 0x80, 0x55
-
-  const byte expect[] = { SIZE, LINE1, LINE2, LINE3, LINE4, LINE5 };
-
-//  byte p1[] = { LINE1 };
-//  byte p2[] = { LINE2 };
-//  byte p3[] = { LINE3 };
-//  byte p4[] = { LINE4 };
-//  byte p5[] = { LINE5 };
-//
-//  ip4_addr ip = ip4_build(5,6,7,0);
-//  net_addr_flow4 *f1, *f2, *f3, *f4, *f5;
-//  NET_ADDR_FLOW4_(f1, ip, 24, ((byte[]) { SIZE - sizeof(p1), LINE2, LINE3, LINE4, LINE5 }));
-//  NET_ADDR_FLOW4_(f2, ip, 24, ((byte[]) { SIZE - sizeof(p2), LINE1, LINE3, LINE4, LINE5 }));
-//  NET_ADDR_FLOW4_(f3, ip, 24, ((byte[]) { SIZE - sizeof(p3), LINE1, LINE2, LINE4, LINE5 }));
-//  NET_ADDR_FLOW4_(f4, ip, 24, ((byte[]) { SIZE - sizeof(p4), LINE1, LINE2, LINE3, LINE5 }));
-//  NET_ADDR_FLOW4_(f5, ip, 24, ((byte[]) { SIZE - sizeof(p5), LINE1, LINE2, LINE3, LINE4 }));
-//
-//#undef SIZE
-//#undef LINE1
-//#undef LINE2
-//#undef LINE3
-//#undef LINE4
-//#undef LINE5
 
   struct flow_builder *fb = flow_builder_init(&root_pool);
+  linpool *lp = lp_new(&root_pool, 4096);
 
-  net_addr n;
+  /* Expectation */
 
+  static byte nlri[] = {
+    25,
+    FLOW_TYPE_DST_PREFIX, 24, 5, 6, 7,
+    FLOW_TYPE_SRC_PREFIX, 32, 10, 11, 12, 13,
+    FLOW_TYPE_IP_PROTOCOL, 0x80, 0x06,
+    FLOW_TYPE_PORT, 0x03, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90,
+    FLOW_TYPE_TCP_FLAGS, 0x80, 0x55
+  };
+
+  net_addr_flow4 *expect;
+  NET_ADDR_FLOW4_(expect, ip4_build(5, 6, 7, 0), 24, nlri);
+
+  /* Normal order */
+
+  net_addr_ip4 n1;
+  net_fill_ip4((net_addr *) &n1, ip4_build(5,6,7,0), 24);
   flow_builder_set_type(fb, FLOW_TYPE_DST_PREFIX);
-  net_fill_ip4(&n, ip4_build(5,6,7,0), 24);
-  flow_builder4_add_pfx(fb, n);
+  flow_builder4_add_pfx(fb, &n1);
 
+  net_addr_ip4 n2;
+  net_fill_ip4((net_addr *) &n2, ip4_build(10,11,12,13), 32);
   flow_builder_set_type(fb, FLOW_TYPE_SRC_PREFIX);
-  net_fill_ip4(&n, ip4_build(10,11,12,13), 32);
-  flow_builder4_add_pfx(fb, n);
+  flow_builder4_add_pfx(fb, &n2);
 
   flow_builder_set_type(fb, FLOW_TYPE_IP_PROTOCOL);
   flow_builder_add_op_val(fb, 0, 0x06);
@@ -434,78 +442,127 @@ t_builder4(void)
   flow_builder_add_op_val(fb, 0x45, 0x8b);
   flow_builder_add_op_val(fb, 0x01, 0x1f90);
 
+  /* Try put a component twice time */
+  flow_builder_set_type(fb, FLOW_TYPE_IP_PROTOCOL);
+  flow_builder_add_op_val(fb, 0, 0x06);
+
   flow_builder_set_type(fb, FLOW_TYPE_TCP_FLAGS);
   flow_builder_add_op_val(fb, 0, 0x55);
 
-  net_addr_flow4 *fl = flow_builder4_finalize(fb, lp);
+  net_addr_flow4 *res = flow_builder4_finalize(fb, lp);
 
-  bt_assert(memcmp(fl->data, expect, sizeof(expect)) == 0);
+  bt_assert(memcmp(res, expect, expect->length) == 0);
+
+  /* Reverse order */
+
+  flow_builder_clear(fb);
+
+  flow_builder_set_type(fb, FLOW_TYPE_TCP_FLAGS);
+  flow_builder_add_op_val(fb, 0, 0x55);
+
+  flow_builder_set_type(fb, FLOW_TYPE_PORT);
+  flow_builder_add_op_val(fb, 0x03, 0x89);
+  flow_builder_add_op_val(fb, 0x45, 0x8b);
+  flow_builder_add_op_val(fb, 0x01, 0x1f90);
+
+  flow_builder_set_type(fb, FLOW_TYPE_IP_PROTOCOL);
+  flow_builder_add_op_val(fb, 0, 0x06);
+
+  net_fill_ip4((net_addr *) &n2, ip4_build(10,11,12,13), 32);
+  flow_builder_set_type(fb, FLOW_TYPE_SRC_PREFIX);
+  flow_builder4_add_pfx(fb, &n2);
+
+  net_fill_ip4((net_addr *) &n1, ip4_build(5,6,7,0), 24);
+  flow_builder_set_type(fb, FLOW_TYPE_DST_PREFIX);
+  flow_builder4_add_pfx(fb, &n1);
+
+  bt_assert(memcmp(res, expect, expect->length) == 0);
 
   return BT_SUCCESS;
 }
-/*
+
 static int
-t_insert6(void)
+t_builder6(void)
 {
+  net_addr_ip6 ip;
+
   resource_init();
+  linpool *lp = lp_new(&root_pool, 4096);
+  struct flow_builder *fb = flow_builder_init(&root_pool);
+  fb->ipv6 = 1;
 
-#define SIZE  26
-#define LINE1 FLOW_TYPE_DST_PREFIX, 0x68, 0x40, 0x12, 0x34, 0x56, 0x78, 0x9a
-#define LINE2 FLOW_TYPE_SRC_PREFIX, 0x08, 0x0, 0xc0
-#define LINE3 FLOW_TYPE_NEXT_HEADER, 0x81, 0x06
-#define LINE4 FLOW_TYPE_PORT, 0x03, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90
-#define LINE5 FLOW_TYPE_LABEL, 0x80, 0x55
+  /* Expectation */
 
-  byte expect[] = { SIZE, LINE1, LINE2, LINE3, LINE4, LINE5 };
+  byte nlri[] = {
+    27,
+    FLOW_TYPE_DST_PREFIX, 103, 61, 0x01, 0x12, 0x34, 0x56, 0x78, 0x98,
+    FLOW_TYPE_SRC_PREFIX, 8, 0, 0xc0,
+    FLOW_TYPE_NEXT_HEADER, 0x80, 0x06,
+    FLOW_TYPE_PORT, 0x03, 0x89, 0x45, 0x8b, 0x91, 0x1f, 0x90,
+    FLOW_TYPE_LABEL, 0x80, 0x55,
+  };
 
-  byte p1[] = { LINE1 };
-  byte p2[] = { LINE2 };
-  byte p3[] = { LINE3 };
-  byte p4[] = { LINE4 };
-  byte p5[] = { LINE5 };
+  net_addr_flow6 *expect;
+  NET_ADDR_FLOW6_(expect, ip6_build(0, 1, 0x12345678, 0x98000000), 103, nlri);
 
-  ip6_addr ip = ip6_build(0x01234567, 0x89abcdef, 0, 0);
+  /* Normal order */
 
-  net_addr_flow6 *f1, *f2, *f3, *f4, *f5;
-  NET_ADDR_FLOW6_(f1, ip, 64, ((byte[]) { SIZE - sizeof(p1), LINE2, LINE3, LINE4, LINE5 }));
-  NET_ADDR_FLOW6_(f2, ip, 64, ((byte[]) { SIZE - sizeof(p2), LINE1, LINE3, LINE4, LINE5 }));
-  NET_ADDR_FLOW6_(f3, ip, 64, ((byte[]) { SIZE - sizeof(p3), LINE1, LINE2, LINE4, LINE5 }));
-  NET_ADDR_FLOW6_(f4, ip, 64, ((byte[]) { SIZE - sizeof(p4), LINE1, LINE2, LINE3, LINE5 }));
-  NET_ADDR_FLOW6_(f5, ip, 64, ((byte[]) { SIZE - sizeof(p5), LINE1, LINE2, LINE3, LINE4 }));
+  net_fill_ip6((net_addr *) &ip, ip6_build(0, 1, 0x12345678, 0x98000000), 103);
+  flow_builder_set_type(fb, FLOW_TYPE_DST_PREFIX);
+  flow_builder6_add_pfx(fb, &ip, 61);
 
-#undef SIZE
-#undef LINE1
-#undef LINE2
-#undef LINE3
-#undef LINE4
-#undef LINE5
+  /* Try put a component twice time */
+  net_fill_ip6((net_addr *) &ip, ip6_build(0, 1, 0x12345678, 0x98000000), 103);
+  flow_builder_set_type(fb, FLOW_TYPE_DST_PREFIX);
+  bt_assert(flow_builder6_add_pfx(fb, &ip, 61) == 0);
 
-  flow6_append_part(f1, p1, sizeof(p1));
-  flow6_append_part(f2, p2, sizeof(p2));
-  flow6_append_part(f3, p3, sizeof(p3));
-  flow6_append_part(f4, p4, sizeof(p4));
-  flow6_append_part(f5, p5, sizeof(p5));
+  net_fill_ip6((net_addr *) &ip, ip6_build(0xc0000000,0,0,0), 8);
+  flow_builder_set_type(fb, FLOW_TYPE_SRC_PREFIX);
+  flow_builder6_add_pfx(fb, &ip, 0);
 
-  bt_assert(memcmp(f1->data, expect, sizeof(expect)) == 0);
-  bt_assert(memcmp(f2->data, expect, sizeof(expect)) == 0);
-  bt_assert(memcmp(f3->data, expect, sizeof(expect)) == 0);
-  bt_assert(memcmp(f4->data, expect, sizeof(expect)) == 0);
-  bt_assert(memcmp(f5->data, expect, sizeof(expect)) == 0);
+  flow_builder_set_type(fb, FLOW_TYPE_NEXT_HEADER);
+  flow_builder_add_op_val(fb, 0, 0x06);
 
-  /* From empty block */
-/*  net_addr_flow6 *empty;
-  NET_ADDR_FLOW6_(empty, ip, 64, (byte[]) {});
+  flow_builder_set_type(fb, FLOW_TYPE_PORT);
+  flow_builder_add_op_val(fb, 0x03, 0x89);
+  flow_builder_add_op_val(fb, 0x45, 0x8b);
+  flow_builder_add_op_val(fb, 0x01, 0x1f90);
 
-  flow6_append_part(empty, p1, sizeof(p1));
-  flow6_append_part(empty, p2, sizeof(p2));
-  flow6_append_part(empty, p3, sizeof(p3));
-  flow6_append_part(empty, p4, sizeof(p4));
-  flow6_append_part(empty, p5, sizeof(p5));
-  bt_assert(memcmp(empty->data, expect, sizeof(expect)) == 0);
+  flow_builder_set_type(fb, FLOW_TYPE_LABEL);
+  flow_builder_add_op_val(fb, 0, 0x55);
+
+  net_addr_flow6 *res = flow_builder6_finalize(fb, lp);
+  bt_assert(memcmp(res, expect, expect->length) == 0);
+
+  /* Reverse order */
+
+  flow_builder_clear(fb);
+  fb->ipv6 = 1;
+
+  flow_builder_set_type(fb, FLOW_TYPE_LABEL);
+  flow_builder_add_op_val(fb, 0, 0x55);
+
+  flow_builder_set_type(fb, FLOW_TYPE_PORT);
+  flow_builder_add_op_val(fb, 0x03, 0x89);
+  flow_builder_add_op_val(fb, 0x45, 0x8b);
+  flow_builder_add_op_val(fb, 0x01, 0x1f90);
+
+  flow_builder_set_type(fb, FLOW_TYPE_NEXT_HEADER);
+  flow_builder_add_op_val(fb, 0, 0x06);
+
+  net_fill_ip6((net_addr *) &ip, ip6_build(0xc0000000,0,0,0), 8);
+  flow_builder_set_type(fb, FLOW_TYPE_SRC_PREFIX);
+  flow_builder6_add_pfx(fb, &ip, 0);
+
+  net_fill_ip6((net_addr *) &ip, ip6_build(0, 1, 0x12345678, 0x98000000), 103);
+  flow_builder_set_type(fb, FLOW_TYPE_DST_PREFIX);
+  flow_builder6_add_pfx(fb, &ip, 61);
+
+  res = flow_builder6_finalize(fb, lp);
+  bt_assert(memcmp(res, expect, expect->length) == 0);
 
   return BT_SUCCESS;
 }
-*/
 
 int
 main(int argc, char *argv[])
@@ -519,8 +576,8 @@ main(int argc, char *argv[])
   bt_test_suite(t_iterators6,   "Testing iterators (IPv6)");
   bt_test_suite(t_validation4,  "Testing validation (IPv4)");
   bt_test_suite(t_validation6,  "Testing validation (IPv6)");
-  bt_test_suite(t_builder4,      "Inserting components into existing Flow Specification (IPv4)");
-//  bt_test_suite(t_insert6,      "Inserting components into existing Flow Specification (IPv6)");
+  bt_test_suite(t_builder4,     "Inserting components into existing Flow Specification (IPv4)");
+  bt_test_suite(t_builder6,     "Inserting components into existing Flow Specification (IPv6)");
 
   return bt_exit_value();
 }
