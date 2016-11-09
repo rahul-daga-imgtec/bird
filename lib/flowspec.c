@@ -405,13 +405,43 @@ flow_builder_init(pool *pool)
 }
 
 static int
+is_addable_type(enum flow_type type)
+{
+  switch (type)
+  {
+  case FLOW_TYPE_IP_PROTOCOL:
+  case FLOW_TYPE_PORT:
+  case FLOW_TYPE_DST_PORT:
+  case FLOW_TYPE_SRC_PORT:
+  case FLOW_TYPE_ICMP_TYPE:
+  case FLOW_TYPE_ICMP_CODE:
+  case FLOW_TYPE_TCP_FLAGS:
+  case FLOW_TYPE_PACKET_LENGTH:
+  case FLOW_TYPE_DSCP:
+  case FLOW_TYPE_FRAGMENT:
+  case FLOW_TYPE_LABEL:
+    return 1;
+  }
+  /* The unknown components are not add-able in default */
+  return 0;
+}
+
+static int
 builder_add_prepare(struct flow_builder *fb)
 {
-  if (fb->last_type != fb->this_type && fb->parts[fb->this_type].length)
-    return 0;
-  else
+  if (fb->parts[fb->this_type].length)
+  {
     if (fb->last_type != fb->this_type)
-      fb->parts[fb->this_type].offset = fb->data.used;
+      return 0;
+
+    if (!is_addable_type(fb->this_type))
+      return 0;
+  }
+  else
+  {
+    fb->parts[fb->this_type].offset = fb->data.used;
+  }
+
   return 1;
 }
 
