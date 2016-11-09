@@ -547,10 +547,10 @@ flow_builder_add_val_mask(struct flow_builder *fb, byte op, u32 value, u32 mask)
 }
 
 void
-flow_builder_set_type(struct flow_builder *fb, enum flow_type p)
+flow_builder_set_type(struct flow_builder *fb, enum flow_type type)
 {
   fb->last_type = fb->this_type;
-  fb->this_type = p;
+  fb->this_type = type;
 }
 
 static ip4_addr
