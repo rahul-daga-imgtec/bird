@@ -14,6 +14,28 @@
 #include "lib/net.h"
 
 
+/* Types of components in Flow Specification */
+enum flow_type {
+  FLOW_TYPE_DST_PREFIX 		=  1,
+  FLOW_TYPE_SRC_PREFIX 		=  2,
+  FLOW_TYPE_IP_PROTOCOL 	=  3,
+  FLOW_TYPE_NEXT_HEADER 	=  3,	/* IPv6 */
+  FLOW_TYPE_PORT 		=  4,
+  FLOW_TYPE_DST_PORT 		=  5,
+  FLOW_TYPE_SRC_PORT 		=  6,
+  FLOW_TYPE_ICMP_TYPE 		=  7,
+  FLOW_TYPE_ICMP_CODE 		=  8,
+  FLOW_TYPE_TCP_FLAGS 		=  9,
+  FLOW_TYPE_PACKET_LENGTH 	= 10,
+  FLOW_TYPE_DSCP 		= 11,	/* DiffServ Code Point */
+  FLOW_TYPE_FRAGMENT 		= 12,
+  FLOW_TYPE_LABEL 		= 13,	/* IPv6 */
+  FLOW_TYPE_MAX
+};
+
+const char *flow_type_str(enum flow_type type, int ipv6);
+
+
 /*
  * 	Length
  */
@@ -49,25 +71,6 @@ const byte *flow6_next_part(const byte *pos, const byte *end);
 /*
  * 	Flowspec Builder
  */
-
-/* Types of components in Flow Specification */
-enum flow_type {
-  FLOW_TYPE_DST_PREFIX 		=  1,
-  FLOW_TYPE_SRC_PREFIX 		=  2,
-  FLOW_TYPE_IP_PROTOCOL 	=  3,
-  FLOW_TYPE_NEXT_HEADER 	=  3,	/* IPv6 */
-  FLOW_TYPE_PORT 		=  4,
-  FLOW_TYPE_DST_PORT 		=  5,
-  FLOW_TYPE_SRC_PORT 		=  6,
-  FLOW_TYPE_ICMP_TYPE 		=  7,
-  FLOW_TYPE_ICMP_CODE 		=  8,
-  FLOW_TYPE_TCP_FLAGS 		=  9,
-  FLOW_TYPE_PACKET_LENGTH 	= 10,
-  FLOW_TYPE_DSCP 		= 11,	/* DiffServ Code Point */
-  FLOW_TYPE_FRAGMENT 		= 12,
-  FLOW_TYPE_LABEL 		= 13,	/* IPv6 */
-  FLOW_TYPE_MAX
-};
 
 /* State data-structure for all flow_builder functions */
 struct flow_builder {

@@ -10,54 +10,36 @@
 #include "lib/flowspec.h"
 #include "conf/conf.h"
 
-static const char* flow_validated_state_str_[] = {
-  [FLOW_ST_UNKNOWN_COMPONENT] 		= "Unknown component",
-  [FLOW_ST_VALID] 			= "Valid",
-  [FLOW_ST_NOT_COMPLETE] 		= "Not complete",
-  [FLOW_ST_EXCEED_MAX_PREFIX_LENGTH] 	= "Exceed maximal prefix length",
-  [FLOW_ST_EXCEED_MAX_PREFIX_OFFSET]	= "Exceed maximal prefix offset",
-  [FLOW_ST_EXCEED_MAX_VALUE_LENGTH]	= "Exceed maximal value length",
-  [FLOW_ST_BAD_TYPE_ORDER] 		= "Bad component order",
-  [FLOW_ST_AND_BIT_SHOULD_BE_UNSET] 	= "The AND-bit should be unset",
-  [FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED] 	= "The Zero-bit should be unset",
-  [FLOW_ST_DEST_PREFIX_REQUIRED] 	= "Destination prefix is required to define"
-};
-
-const char *
-flow_validated_state_str(enum flow_validated_state code)
-{
-  return flow_validated_state_str_[code];
-}
 
 static const char* flow4_type_str[] = {
-  [FLOW_TYPE_DST_PREFIX]		= "dst",
-  [FLOW_TYPE_SRC_PREFIX]		= "src",
-  [FLOW_TYPE_IP_PROTOCOL]		= "proto",
-  [FLOW_TYPE_PORT]			= "port",
-  [FLOW_TYPE_DST_PORT]			= "dport",
-  [FLOW_TYPE_SRC_PORT]			= "sport",
-  [FLOW_TYPE_ICMP_TYPE]			= "icmp type",
-  [FLOW_TYPE_ICMP_CODE]			= "icmp code",
-  [FLOW_TYPE_TCP_FLAGS]			= "tcp flags",
-  [FLOW_TYPE_PACKET_LENGTH]		= "length",
-  [FLOW_TYPE_DSCP]			= "dscp",
-  [FLOW_TYPE_FRAGMENT]			= "fragment"
+  [FLOW_TYPE_DST_PREFIX]	= "dst",
+  [FLOW_TYPE_SRC_PREFIX]	= "src",
+  [FLOW_TYPE_IP_PROTOCOL]	= "proto",
+  [FLOW_TYPE_PORT]		= "port",
+  [FLOW_TYPE_DST_PORT]		= "dport",
+  [FLOW_TYPE_SRC_PORT]		= "sport",
+  [FLOW_TYPE_ICMP_TYPE]		= "icmp type",
+  [FLOW_TYPE_ICMP_CODE]		= "icmp code",
+  [FLOW_TYPE_TCP_FLAGS]		= "tcp flags",
+  [FLOW_TYPE_PACKET_LENGTH]	= "length",
+  [FLOW_TYPE_DSCP]		= "dscp",
+  [FLOW_TYPE_FRAGMENT]		= "fragment"
 };
 
 static const char* flow6_type_str[] = {
-  [FLOW_TYPE_DST_PREFIX]		= "dst",
-  [FLOW_TYPE_SRC_PREFIX]		= "src",
-  [FLOW_TYPE_NEXT_HEADER]		= "next header",
-  [FLOW_TYPE_PORT]			= "port",
-  [FLOW_TYPE_DST_PORT]			= "dport",
-  [FLOW_TYPE_SRC_PORT]			= "sport",
-  [FLOW_TYPE_ICMP_TYPE]			= "icmp type",
-  [FLOW_TYPE_ICMP_CODE]			= "icmp code",
-  [FLOW_TYPE_TCP_FLAGS]			= "tcp flags",
-  [FLOW_TYPE_PACKET_LENGTH]		= "length",
-  [FLOW_TYPE_DSCP]			= "dscp",
-  [FLOW_TYPE_FRAGMENT]			= "fragment",
-  [FLOW_TYPE_LABEL]			= "label"
+  [FLOW_TYPE_DST_PREFIX]	= "dst",
+  [FLOW_TYPE_SRC_PREFIX]	= "src",
+  [FLOW_TYPE_NEXT_HEADER]	= "next header",
+  [FLOW_TYPE_PORT]		= "port",
+  [FLOW_TYPE_DST_PORT]		= "dport",
+  [FLOW_TYPE_SRC_PORT]		= "sport",
+  [FLOW_TYPE_ICMP_TYPE]		= "icmp type",
+  [FLOW_TYPE_ICMP_CODE]		= "icmp code",
+  [FLOW_TYPE_TCP_FLAGS]		= "tcp flags",
+  [FLOW_TYPE_PACKET_LENGTH]	= "length",
+  [FLOW_TYPE_DSCP]		= "dscp",
+  [FLOW_TYPE_FRAGMENT]		= "fragment",
+  [FLOW_TYPE_LABEL]		= "label"
 };
 
 const char *
@@ -65,6 +47,10 @@ flow_type_str(enum flow_type type, int ipv6)
 {
   return ipv6 ? flow6_type_str[type] : flow4_type_str[type];
 }
+
+/*
+ * 	Length
+ */
 
 /**
  * flow_write_length - write compressed length value
@@ -97,6 +83,10 @@ get_value_length(const byte *op)
 /*
  *	Flowspec iterators
  */
+
+static inline u8  num_op(const byte *op)    { return  (*op & 0x07); }
+static inline int isset_and(const byte *op) { return ((*op & 0x40) == 0x40); }
+static inline int isset_end(const byte *op) { return ((*op & 0x80) == 0x80); }
 
 static const byte *
 flow_first_part(const byte *data)
@@ -165,7 +155,7 @@ flow_next_part(const byte *pos, const byte *end, int ipv6)
 
     while (!last)
     {
-      last = *pos & 0x80;
+      last = isset_end(pos);
 
       /* Value length of operator */
       uint len = get_value_length(pos);
@@ -197,35 +187,54 @@ flow6_next_part(const byte *pos, const byte *end)
  * 	Flowspec validation
  */
 
+static const char* flow_validated_state_str_[] = {
+  [FLOW_ST_UNKNOWN_COMPONENT] 		= "Unknown component",
+  [FLOW_ST_VALID] 			= "Valid",
+  [FLOW_ST_NOT_COMPLETE] 		= "Not complete",
+  [FLOW_ST_EXCEED_MAX_PREFIX_LENGTH] 	= "Exceed maximal prefix length",
+  [FLOW_ST_EXCEED_MAX_PREFIX_OFFSET]	= "Exceed maximal prefix offset",
+  [FLOW_ST_EXCEED_MAX_VALUE_LENGTH]	= "Exceed maximal value length",
+  [FLOW_ST_BAD_TYPE_ORDER] 		= "Bad component order",
+  [FLOW_ST_AND_BIT_SHOULD_BE_UNSET] 	= "The AND-bit should be unset",
+  [FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED] 	= "The Zero-bit should be unset",
+  [FLOW_ST_DEST_PREFIX_REQUIRED] 	= "Destination prefix is required to define"
+};
+
+const char *
+flow_validated_state_str(enum flow_validated_state code)
+{
+  return flow_validated_state_str_[code];
+}
+
 static const u8 flow4_max_value_length[] = {
-  [FLOW_TYPE_DST_PREFIX]		= 0,
-  [FLOW_TYPE_SRC_PREFIX]		= 0,
-  [FLOW_TYPE_IP_PROTOCOL]		= 1,
-  [FLOW_TYPE_PORT]			= 2,
-  [FLOW_TYPE_DST_PORT]			= 2,
-  [FLOW_TYPE_SRC_PORT]			= 2,
-  [FLOW_TYPE_ICMP_TYPE]			= 1,
-  [FLOW_TYPE_ICMP_CODE]			= 1,
-  [FLOW_TYPE_TCP_FLAGS]			= 2,
-  [FLOW_TYPE_PACKET_LENGTH]		= 2,
-  [FLOW_TYPE_DSCP]			= 1,
-  [FLOW_TYPE_FRAGMENT]			= 2
+  [FLOW_TYPE_DST_PREFIX]	= 0,
+  [FLOW_TYPE_SRC_PREFIX]	= 0,
+  [FLOW_TYPE_IP_PROTOCOL]	= 1,
+  [FLOW_TYPE_PORT]		= 2,
+  [FLOW_TYPE_DST_PORT]		= 2,
+  [FLOW_TYPE_SRC_PORT]		= 2,
+  [FLOW_TYPE_ICMP_TYPE]		= 1,
+  [FLOW_TYPE_ICMP_CODE]		= 1,
+  [FLOW_TYPE_TCP_FLAGS]		= 2,
+  [FLOW_TYPE_PACKET_LENGTH]	= 2,
+  [FLOW_TYPE_DSCP]		= 1,
+  [FLOW_TYPE_FRAGMENT]		= 2
 };
 
 static const u8 flow6_max_value_length[] = {
-  [FLOW_TYPE_DST_PREFIX]		= 0,
-  [FLOW_TYPE_SRC_PREFIX]		= 0,
-  [FLOW_TYPE_NEXT_HEADER]		= 1,
-  [FLOW_TYPE_PORT]			= 2,
-  [FLOW_TYPE_DST_PORT]			= 2,
-  [FLOW_TYPE_SRC_PORT]			= 2,
-  [FLOW_TYPE_ICMP_TYPE]			= 1,
-  [FLOW_TYPE_ICMP_CODE]			= 1,
-  [FLOW_TYPE_TCP_FLAGS]			= 2,
-  [FLOW_TYPE_PACKET_LENGTH]		= 2,
-  [FLOW_TYPE_DSCP]			= 1,
-  [FLOW_TYPE_FRAGMENT]			= 2,
-  [FLOW_TYPE_LABEL]			= 4
+  [FLOW_TYPE_DST_PREFIX]	= 0,
+  [FLOW_TYPE_SRC_PREFIX]	= 0,
+  [FLOW_TYPE_NEXT_HEADER]	= 1,
+  [FLOW_TYPE_PORT]		= 2,
+  [FLOW_TYPE_DST_PORT]		= 2,
+  [FLOW_TYPE_SRC_PORT]		= 2,
+  [FLOW_TYPE_ICMP_TYPE]		= 1,
+  [FLOW_TYPE_ICMP_CODE]		= 1,
+  [FLOW_TYPE_TCP_FLAGS]		= 2,
+  [FLOW_TYPE_PACKET_LENGTH]	= 2,
+  [FLOW_TYPE_DSCP]		= 1,
+  [FLOW_TYPE_FRAGMENT]		= 2,
+  [FLOW_TYPE_LABEL]		= 4
 };
 
 static u8
@@ -325,10 +334,10 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 	 *           Numeric operator
 	 */
 
-	last = *pos & 0x80;
+	last = isset_end(pos);
 
 	/* The AND bit should in the first operator byte of a sequence */
-	if (first && (*pos & 0x40))
+	if (first && isset_and(pos))
 	  return FLOW_ST_AND_BIT_SHOULD_BE_UNSET;
 
 	/* This bit should be zero */
@@ -707,24 +716,6 @@ get_value(const byte *op)
   return 0;
 }
 
-static inline u8
-num_op(const byte *op)
-{
-  return (*op & 0x07);
-}
-
-static inline int
-isset_and(const byte *op)
-{
-  return ((*op & 0x40) == 0x40);
-}
-
-static inline int
-isset_end(const byte *op)
-{
-  return ((*op & 0x80) == 0x80);
-}
-
 static int
 net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 {
@@ -828,7 +819,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  if (!isset_end(op) && !isset_and(op) && isset_and(op+1+len) &&
 	      (num_op(op) == FLOW_GTE) && (num_op(op+1+len) == FLOW_LTE))
 	  {
-	    /* Interval */
+	    /* Display interval */
 	    buffer_print(&b, "%u..", val);
 	    op += 1 + len;
 	    val = get_value(op);
@@ -845,7 +836,6 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  }
 	}
 
-	/* Check End-bit */
 	if (isset_end(op))
 	{
 	  buffer_puts(&b, "; ");
