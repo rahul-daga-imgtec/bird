@@ -667,29 +667,28 @@ flow6_validate_cf(net_addr *n)
  * 	Net Formatting
  */
 
-static const char *
-num_op_str(byte op)
-{
-  switch (op & 0x07)
-  {
-  case 0b000: return "true";
-  case 0b001: return "=";
-  case 0b010: return ">";
-  case 0b011: return ">=";
-  case 0b100: return "<";
-  case 0b101: return "<=";
-  case 0b110: return "!=";
-  case 0b111: return "false";
-  }
-}
+#define FLOW_TRUE	0b000
+#define FLOW_EQ		0b001
+#define FLOW_GT		0b010
+#define FLOW_GTE	0b011
+#define FLOW_LT		0b100
+#define FLOW_LTE	0b101
+#define FLOW_NEQ	0b110
+#define FLOW_FALSE	0b111
 
 static const char *
-logic_op_str(byte op)
+num_op_str(const byte *op)
 {
-  switch (op & 0x40)
+  switch (*op & 0x07)
   {
-  case 0x00: return "||";
-  case 0x40: return "&&";
+  case FLOW_TRUE: 	return "true";
+  case FLOW_EQ: 	return "=";
+  case FLOW_GT: 	return ">";
+  case FLOW_GTE: 	return ">=";
+  case FLOW_LT: 	return "<";
+  case FLOW_LTE: 	return "<=";
+  case FLOW_NEQ: 	return "!=";
+  case FLOW_FALSE: 	return "false";
   }
 }
 
@@ -706,6 +705,24 @@ get_value(const byte *op)
   }
 
   return 0;
+}
+
+static inline u8
+num_op(const byte *op)
+{
+  return (*op & 0x07);
+}
+
+static inline int
+isset_and(const byte *op)
+{
+  return ((*op & 0x40) == 0x40);
+}
+
+static inline int
+isset_end(const byte *op)
+{
+  return ((*op & 0x80) == 0x80);
 }
 
 static int
@@ -763,6 +780,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
     case FLOW_TYPE_FRAGMENT:
     case FLOW_TYPE_LABEL:
     {
+      const byte *last_op = NULL;
       const byte *op = part+1;
       u32 val;
       uint len;
@@ -771,7 +789,19 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
       while (1)
       {
 	if (!first)
-	  buffer_print(&b, "%s ", logic_op_str(*op));
+	{
+	  if (!isset_and(op) &&
+	      ((num_op(     op) == FLOW_EQ) || (num_op(     op) == FLOW_GTE)) &&
+	      ((num_op(last_op) == FLOW_EQ) || (num_op(last_op) == FLOW_LTE)))
+	  {
+	    b.pos--; /* Remove last char (it is a space) */
+	    buffer_puts(&b, ",");
+	  }
+	  else
+	  {
+	    buffer_puts(&b, isset_and(op) ? "&& " : "|| ");
+	  }
+	}
 	first = 0;
 
 	val = get_value(op);
@@ -795,11 +825,28 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	}
 	else
 	{
-	  buffer_print(&b, "%s %u", num_op_str(*op), val);
+	  if (!isset_end(op) && !isset_and(op) && isset_and(op+1+len) &&
+	      (num_op(op) == FLOW_GTE) && (num_op(op+1+len) == FLOW_LTE))
+	  {
+	    /* Interval */
+	    buffer_print(&b, "%u..", val);
+	    op += 1 + len;
+	    val = get_value(op);
+	    len = get_value_length(op);
+	    buffer_print(&b, "%u", val);
+	  }
+	  else if (num_op(op) == FLOW_EQ)
+	  {
+	    buffer_print(&b, "%u", val);
+	  }
+	  else
+	  {
+	    buffer_print(&b, "%s %u", num_op_str(op), val);
+	  }
 	}
 
 	/* Check End-bit */
-	if ((*op & 0x80) == 0x80)
+	if (isset_end(op))
 	{
 	  buffer_puts(&b, "; ");
 	  break;
@@ -809,6 +856,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  buffer_puts(&b, " ");
 	}
 
+	last_op = op;
 	op += 1 + len;
       }
     }
