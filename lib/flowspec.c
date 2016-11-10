@@ -711,31 +711,24 @@ get_value(const byte *op)
 static int
 net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 {
-#define PRINT(msg, ...)							\
-  do 									\
-  { 									\
-     int chrs__ = bsnprintf(buf+chrs, blen-chrs, msg, ##__VA_ARGS__);	\
-     if (chrs__ < 1) 							\
-     { 									\
-       chrs__ = MIN(chrs, blen-6);					\
-       chrs += bsnprintf(buf+chrs__, blen-chrs__, " ...}");		\
-       goto end;							\
-     }									\
-     chrs += chrs__;							\
-  } while (0)
+  buffer b = {
+    .start = buf,
+    .pos = buf,
+    .end = buf + blen,
+  };
 
   const byte *part = flow_first_part(data);
   int chrs = 0;
   *buf = 0;
 
   if (ipv6)
-    PRINT("flow6 { ");
+    buffer_puts(&b, "flow6 { ");
   else
-    PRINT("flow4 { ");
+    buffer_puts(&b, "flow4 { ");
 
   while (part)
   {
-    PRINT("%s ", flow_type_str(*part, ipv6));
+    buffer_print(&b, "%s ", flow_type_str(*part, ipv6));
 
     switch (*part)
     {
@@ -747,13 +740,13 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
       {
 	uint pxoffset = *(part+2);
 	if (pxoffset)
-	  PRINT("%I6/%u-%u; ", flow_read_ip6(part+3,pxlen,pxoffset), pxoffset, pxlen);
+	  buffer_print(&b, "%I6/%u-%u; ", flow_read_ip6(part+3,pxlen,pxoffset), pxoffset, pxlen);
 	else
-	  PRINT("%I6/%u; ", flow_read_ip6(part+3,pxlen,0), pxlen);
+	  buffer_print(&b, "%I6/%u; ", flow_read_ip6(part+3,pxlen,0), pxlen);
       }
       else
       {
-	PRINT("%I4/%u; ", flow_read_ip4(part+2,pxlen), pxlen);
+	buffer_print(&b, "%I4/%u; ", flow_read_ip4(part+2,pxlen), pxlen);
       }
       break;
     }
@@ -778,7 +771,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
       while (1)
       {
 	if (!first)
-	  PRINT("%s ", logic_op_str(*op));
+	  buffer_print(&b, "%s ", logic_op_str(*op));
 	first = 0;
 
 	val = get_value(op);
@@ -796,24 +789,24 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	   */
 
 	  if ((*op & 0x3) == 0x3 || (*op & 0x3) == 0)
-	    PRINT("!");
+	    buffer_puts(&b, "!");
 
-	  PRINT("0x%x/0x%x", ((*op & 0x1) ? val : 0), val);
+	  buffer_print(&b, "0x%x/0x%x", ((*op & 0x1) ? val : 0), val);
 	}
 	else
 	{
-	  PRINT("%s %u", num_op_str(*op), val);
+	  buffer_print(&b, "%s %u", num_op_str(*op), val);
 	}
 
 	/* Check End-bit */
 	if ((*op & 0x80) == 0x80)
 	{
-	  PRINT("; ");
+	  buffer_puts(&b, "; ");
 	  break;
 	}
 	else
 	{
-	  PRINT(" ");
+	  buffer_puts(&b, " ");
 	}
 
 	op += 1 + len;
@@ -824,12 +817,15 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
     part = flow_next_part(part, data+dlen, ipv6);
   }
 
-  PRINT("}");
+  buffer_puts(&b, "}");
 
- end:
-  return chrs;
+  if (b.pos == b.end)
+  {
+    b.pos = b.start + MIN(blen - 6, strlen(b.start));
+    buffer_puts(&b, " ...}");
+  }
 
-#undef PRINT
+  return b.pos - b.start;
 }
 
 int
