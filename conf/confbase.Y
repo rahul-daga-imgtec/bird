@@ -98,7 +98,7 @@ CF_DECLS
 
 CF_KEYWORDS(DEFINE, ON, OFF, YES, NO, S, MS, US, PORT, FLOW4, FLOW6, DST, SRC,
 	    PROTO, NEXT, HEADER, DPORT, SPORT, ICMP, TYPE, CODE, TCP, FLAGS,
-	    LENGTH, DSCP, FRAGMENT, LABEL)
+	    LENGTH, DSCP, FRAGMENT, LABEL, OFFSET)
 
 CF_GRAMMAR
 
@@ -317,15 +317,11 @@ flow6_item:
      flow_builder_set_type(this_flow, $1);
      flow_builder6_add_pfx(this_flow, (net_addr_ip6 *) &($2), 0);
    }
- | flow_srcdst IP6 '/' NUM '-' NUM {
-     if ($6 < 0 || $6 > IP6_MAX_PREFIX_LENGTH)
-       cf_error("Invalid prefix length %u", $6);
-     if (!net_validate_ip6(&(NET_ADDR_IP6($2, $6))))
-       cf_error("Invalid IPv6 prefix");
-     if ($4 > $6)
-       cf_error("Higher prefix offset than prefix length");
+ | flow_srcdst net_ip6 OFFSET NUM {
+     if ($4 > $2.pxlen)
+       cf_error("Prefix offset is higher than prefix length");
      flow_builder_set_type(this_flow, $1);
-     flow_builder6_add_pfx(this_flow, &NET_ADDR_IP6($2, $6), $4);
+     flow_builder6_add_pfx(this_flow, (net_addr_ip6 *) &($2), $4);
    }
  | flow_num_type flow_num_opts
  | flow_bmk_type flow_bmk_opts

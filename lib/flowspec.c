@@ -740,7 +740,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
       {
 	uint pxoffset = *(part+2);
 	if (pxoffset)
-	  buffer_print(&b, "%I6/%u-%u; ", flow_read_ip6(part+3,pxlen,pxoffset), pxoffset, pxlen);
+	  buffer_print(&b, "%I6/%u offset %u; ", flow_read_ip6(part+3,pxlen,pxoffset), pxlen, pxoffset);
 	else
 	  buffer_print(&b, "%I6/%u; ", flow_read_ip6(part+3,pxlen,0), pxlen);
       }
