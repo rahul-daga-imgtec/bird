@@ -218,7 +218,7 @@ static const u8 flow4_max_value_length[] = {
   [FLOW_TYPE_TCP_FLAGS]		= 2,
   [FLOW_TYPE_PACKET_LENGTH]	= 2,
   [FLOW_TYPE_DSCP]		= 1,
-  [FLOW_TYPE_FRAGMENT]		= 2
+  [FLOW_TYPE_FRAGMENT]		= 1	/* XXX */
 };
 
 static const u8 flow6_max_value_length[] = {
@@ -233,7 +233,7 @@ static const u8 flow6_max_value_length[] = {
   [FLOW_TYPE_TCP_FLAGS]		= 2,
   [FLOW_TYPE_PACKET_LENGTH]	= 2,
   [FLOW_TYPE_DSCP]		= 1,
-  [FLOW_TYPE_FRAGMENT]		= 2,
+  [FLOW_TYPE_FRAGMENT]		= 1,	/* XXX */
   [FLOW_TYPE_LABEL]		= 4
 };
 
@@ -248,6 +248,9 @@ flow_check_cf_bmk_values(struct flow_builder *fb, u32 val, u32 mask)
 {
   flow_check_cf_value_length(fb, val);
   flow_check_cf_value_length(fb, mask);
+
+  if (fb->this_type == FLOW_TYPE_FRAGMENT && fb->ipv6 && (mask & 0x1))
+    cf_error("Invalid mask 0x%x. Bit-7 must be 0 [draft-ietf-idr-flow-spec-v6]", mask);
 
   if (val & ~mask)
     cf_error("Value 0x%x outside bitmask 0x%x", val, mask);
@@ -357,6 +360,11 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 	  if (*pos & 0x04)
 	    return FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED;
 	}
+
+	/* Bit-7 must be 0 [draft-ietf-idr-flow-spec-v6] */
+	if (ipv6 && type == FLOW_TYPE_FRAGMENT && (*(pos+1) & 0x01))
+	  return FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED;
+	/* XXX: Could be Fragment component encoded in 2-bytes? */
 
 	/* Value length of operator */
 	uint len = get_value_length(pos);
@@ -716,6 +724,32 @@ get_value(const byte *val, u8 len)
 }
 
 static int
+is_bitmask(enum flow_type type)
+{
+  switch (type)
+  {
+  case FLOW_TYPE_TCP_FLAGS:
+  case FLOW_TYPE_FRAGMENT:
+  case FLOW_TYPE_LABEL:
+    return 1;
+  }
+  return 0;
+}
+
+static const char *
+fragment_val_str(u8 val)
+{
+  switch (val)
+  {
+  case 1: return "dont_fragment";
+  case 2: return "is_fragment";
+  case 4: return "first_fragment";
+  case 8: return "last_fragment";
+  }
+  return "???";
+}
+
+static int
 net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 {
   buffer b = {
@@ -797,7 +831,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	len = get_value_length(op);
 	val = get_value(op+1, len);
 
-	if (*part == FLOW_TYPE_FRAGMENT || *part == FLOW_TYPE_TCP_FLAGS)
+	if (is_bitmask(*part))
 	{
 	  /*
 	   *   Not Match  Show
@@ -811,7 +845,10 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	  if ((*op & 0x3) == 0x3 || (*op & 0x3) == 0)
 	    buffer_puts(&b, "!");
 
-	  buffer_print(&b, "0x%x/0x%x", ((*op & 0x1) ? val : 0), val);
+	  if (*part == FLOW_TYPE_FRAGMENT && (val == 1 || val == 2 || val == 4 || val == 8))
+	    buffer_print(&b, "%s%s", ((*op & 0x1) ? "" : "no "), fragment_val_str(val));
+	  else
+	    buffer_print(&b, "0x%x/0x%x", ((*op & 0x1) ? val : 0), val);
 	}
 	else
 	{

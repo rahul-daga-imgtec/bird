@@ -80,7 +80,7 @@ CF_DECLS
 %type <iface> ipa_scope
 
 %type <i> expr bool pxlen4
-%type <i32> expr_us flow_num_op flow_srcdst flow_logic_op flow_num_type_ flow_bmk_type_
+%type <i32> expr_us flow_num_op flow_srcdst flow_logic_op flow_num_type_ flow_bmk_type_ flow_fragment_val flow_fragment_neg
 %type <time> datetime
 %type <a> ipa
 %type <net> net_ip4_ net_ip6_ net_ip6 net_ip_ net_ip net_or_ipa
@@ -98,7 +98,7 @@ CF_DECLS
 
 CF_KEYWORDS(DEFINE, ON, OFF, YES, NO, S, MS, US, PORT, FLOW4, FLOW6, DST, SRC,
 	    PROTO, NEXT, HEADER, DPORT, SPORT, ICMP, TYPE, CODE, TCP, FLAGS,
-	    LENGTH, DSCP, FRAGMENT, LABEL, OFFSET)
+	    LENGTH, DSCP, DONT_FRAGMENT, IS_FRAGMENT, FIRST_FRAGMENT, LAST_FRAGMENT, FRAGMENT, LABEL, OFFSET)
 
 CF_GRAMMAR
 
@@ -292,6 +292,18 @@ flow_num_opt_ext:
  | flow_num_opt_ext ',' flow_num_opt_ext_expr
  ;
 
+flow_fragment_neg:
+   /* empty */ 	{ $$ = 1; }
+ | NO		{ $$ = 0; }
+ ;
+
+flow_fragment_val:
+   DONT_FRAGMENT  { $$ = 1; }
+ | IS_FRAGMENT	  { $$ = 2; }
+ | FIRST_FRAGMENT { $$ = 4; }
+ | LAST_FRAGMENT  { $$ = 8; }
+ ;
+
 flow_bmk_opts:
    expr '/' expr {
      flow_check_cf_bmk_values(this_flow, $1, $3);
@@ -300,6 +312,12 @@ flow_bmk_opts:
  | flow_bmk_opts flow_logic_op expr '/' expr {
      flow_check_cf_bmk_values(this_flow, $3, $5);
      flow_builder_add_val_mask(this_flow, $2, $3, $5);
+   }
+ | flow_fragment_neg flow_fragment_val {
+     flow_builder_add_val_mask(this_flow, 0, ($1 ? $2 : 0), $2);
+   }
+ | flow_bmk_opts flow_logic_op flow_fragment_neg flow_fragment_val {
+     flow_builder_add_val_mask(this_flow, $2, ($3 ? $4 : 0), $4);
    }
  ;
 
