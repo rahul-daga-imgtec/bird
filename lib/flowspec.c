@@ -702,15 +702,14 @@ num_op_str(const byte *op)
 }
 
 static u32
-get_value(const byte *op)
+get_value(const byte *val, u8 len)
 {
-  const byte *val = op + 1;
-
-  switch (get_value_length(op))
+  switch (len)
   {
   case 1: return *val;
   case 2: return get_u16(val);
   case 4: return get_u32(val);
+  case 8: return get_u64(val);
   }
 
   return 0;
@@ -795,8 +794,8 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	}
 	first = 0;
 
-	val = get_value(op);
 	len = get_value_length(op);
+	val = get_value(op+1, len);
 
 	if (*part == FLOW_TYPE_FRAGMENT || *part == FLOW_TYPE_TCP_FLAGS)
 	{
@@ -822,8 +821,8 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	    /* Display interval */
 	    buffer_print(&b, "%u..", val);
 	    op += 1 + len;
-	    val = get_value(op);
 	    len = get_value_length(op);
+	    val = get_value(op+1, len);
 	    buffer_print(&b, "%u", val);
 	  }
 	  else if (num_op(op) == FLOW_EQ)
