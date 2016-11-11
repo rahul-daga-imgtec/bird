@@ -262,6 +262,9 @@ flow_check_cf_value_length(struct flow_builder *fb, u32 val)
   enum flow_type t = fb->this_type;
   u8 max = flow_max_value_length(t, fb->ipv6);
 
+  if (t == FLOW_TYPE_DSCP && val > 0x3f)
+    cf_error("%s value %u out of range (0-63)", flow_type_str(t, fb->ipv6), val);
+
   if (max == 1 && (val > 0xff))
     cf_error("%s value %u out of range (0-255)", flow_type_str(t, fb->ipv6), val);
 
