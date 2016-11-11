@@ -564,6 +564,65 @@ t_builder6(void)
   return BT_SUCCESS;
 }
 
+static int
+t_formatting4(void)
+{
+  char b[1024];
+
+  byte nlri[] = {
+    0,
+    FLOW_TYPE_DST_PREFIX, 0x08, 10,
+    FLOW_TYPE_IP_PROTOCOL, 0x81, 23,
+    FLOW_TYPE_DST_PORT, 0x02, 24, 0x44, 30, 0x03, 40, 0x45, 50, 0x03, 60, 0x45, 70, 0x01, 80, 0xc3, 90,
+    FLOW_TYPE_SRC_PORT, 0x02, 24, 0x44, 0x1e, 0x01, 0x28, 0x01, 0x32, 0x03, 0x3c, 0x45, 0x46, 0x81, 0x50,
+    FLOW_TYPE_ICMP_TYPE, 0x81, 0x50,
+    FLOW_TYPE_ICMP_CODE, 0x81, 0x5a,
+    FLOW_TYPE_TCP_FLAGS, 0x01, 0x03, 0xc2, 0x0c,
+    FLOW_TYPE_PACKET_LENGTH, 0x03, 0, 0xd5, 0xff, 0xff,
+    FLOW_TYPE_DSCP, 0x81, 63,
+    FLOW_TYPE_FRAGMENT, 0x01, 0x01, 0x82, 0x02
+  };
+  *nlri = (u8) sizeof(nlri);
+
+  net_addr_flow4 *input;
+  NET_ADDR_FLOW4_(input, ip4_build(5, 6, 7, 0), 24, nlri);
+
+  const char *expect = "flow4 { dst 10.0.0.0/8; proto 23; dport > 24 && < 30 || 40..50,60..70,80 && >= 90; sport > 24 && < 30 || 40,50,60..70,80; icmp type 80; icmp code 90; tcp flags 0x3/0x3 && 0x0/0xc; length 0..65535; dscp 63; fragment dont_fragment || no is_fragment; }";
+
+  bt_assert(flow4_net_format(b, sizeof(b), input) == strlen(expect));
+  bt_debug(" expect: '%s',\n output: '%s'\n", expect, b);
+  bt_assert(strcmp(b, expect) == 0);
+
+  return BT_SUCCESS;
+}
+
+static int
+t_formatting6(void)
+{
+  char b[1024];
+
+  byte nlri[] = {
+    0,
+    FLOW_TYPE_DST_PREFIX, 103, 61, 0x01, 0x12, 0x34, 0x56, 0x78, 0x98,
+    FLOW_TYPE_SRC_PREFIX, 8, 0, 0xc0,
+    FLOW_TYPE_NEXT_HEADER, 0x81, 0x06,
+    FLOW_TYPE_PORT, 0x03, 20, 0x45, 40, 0x91, 0x01, 0x11,
+    FLOW_TYPE_LABEL, 0xa0, 0x12, 0x34, 0x56, 0x78,
+  };
+  *nlri = (u8) sizeof(nlri);
+
+  net_addr_flow6 *input;
+  NET_ADDR_FLOW6_(input, ip6_build(0, 1, 0x12345678, 0x98000000), 103, nlri);
+
+  const char *expect = "flow6 { dst ::1:1234:5678:9800:0/103 offset 61; src c000::/8; next header 6; port 20..40,273; label !0x0/0x12345678; }";
+
+  bt_assert(flow6_net_format(b, sizeof(b), input) == strlen(expect));
+  bt_debug(" expect: '%s',\n output: '%s'\n", expect, b);
+  bt_assert(strcmp(b, expect) == 0);
+
+  return BT_SUCCESS;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -578,6 +637,8 @@ main(int argc, char *argv[])
   bt_test_suite(t_validation6,  "Testing validation (IPv6)");
   bt_test_suite(t_builder4,     "Inserting components into existing Flow Specification (IPv4)");
   bt_test_suite(t_builder6,     "Inserting components into existing Flow Specification (IPv6)");
+  bt_test_suite(t_formatting4,  "Formatting Flow Specification (IPv4) into text representation");
+  bt_test_suite(t_formatting6,  "Formatting Flow Specification (IPv6) into text representation");
 
   return bt_exit_value();
 }
