@@ -80,7 +80,7 @@ CF_DECLS
 %type <iface> ipa_scope
 
 %type <i> expr bool pxlen4
-%type <i32> expr_us flow_num_op flow_srcdst flow_logic_op flow_num_type_ flow_bmk_type_ flow_fragment_val flow_fragment_neg
+%type <i32> expr_us flow_num_op flow_srcdst flow_logic_op flow_num_type_ flow_frag_val flow_frag_neg
 %type <time> datetime
 %type <a> ipa
 %type <net> net_ip4_ net_ip6_ net_ip6 net_ip_ net_ip net_or_ipa
@@ -245,16 +245,12 @@ flow_num_type_:
  | ICMP CODE	{ $$ = FLOW_TYPE_ICMP_CODE; }
  | LENGTH	{ $$ = FLOW_TYPE_PACKET_LENGTH; }
  | DSCP		{ $$ = FLOW_TYPE_DSCP; }
- | LABEL	{ $$ = FLOW_TYPE_LABEL; }
- ;
-
-flow_bmk_type_:
-   TCP FLAGS	{ $$ = FLOW_TYPE_TCP_FLAGS; }
- | FRAGMENT	{ $$ = FLOW_TYPE_FRAGMENT; }
  ;
 
 flow_num_type: flow_num_type_{ flow_builder_set_type(this_flow, $1); };
-flow_bmk_type: flow_bmk_type_{ flow_builder_set_type(this_flow, $1); };
+flow_tcp_type: TCP FLAGS     { flow_builder_set_type(this_flow, FLOW_TYPE_TCP_FLAGS); };
+flow_frag_type: FRAGMENT     { flow_builder_set_type(this_flow, FLOW_TYPE_FRAGMENT); };
+flow_label_type: LABEL       { flow_builder_set_type(this_flow, FLOW_TYPE_LABEL); };
 
 flow_srcdst:
    DST		{ $$ = FLOW_TYPE_DST_PREFIX; }
@@ -292,18 +288,6 @@ flow_num_opt_ext:
  | flow_num_opt_ext ',' flow_num_opt_ext_expr
  ;
 
-flow_fragment_neg:
-   /* empty */ 	{ $$ = 1; }
- | '!'		{ $$ = 0; }
- ;
-
-flow_fragment_val:
-   DONT_FRAGMENT  { $$ = 1; }
- | IS_FRAGMENT	  { $$ = 2; }
- | FIRST_FRAGMENT { $$ = 4; }
- | LAST_FRAGMENT  { $$ = 8; }
- ;
-
 flow_bmk_opts:
    expr '/' expr {
      flow_check_cf_bmk_values(this_flow, $1, $3);
@@ -313,11 +297,29 @@ flow_bmk_opts:
      flow_check_cf_bmk_values(this_flow, $3, $5);
      flow_builder_add_val_mask(this_flow, $2, $3, $5);
    }
- | flow_fragment_neg flow_fragment_val {
+ ;
+
+flow_frag_neg:
+   /* empty */ 	{ $$ = 1; }
+ | '!'		{ $$ = 0; }
+ ;
+
+flow_frag_val:
+   DONT_FRAGMENT  { $$ = 1; }
+ | IS_FRAGMENT	  { $$ = 2; }
+ | FIRST_FRAGMENT { $$ = 4; }
+ | LAST_FRAGMENT  { $$ = 8; }
+ ;
+
+flow_frag_opts:
+   flow_frag_neg flow_frag_val {
      flow_builder_add_val_mask(this_flow, 0, ($1 ? $2 : 0), $2);
    }
- | flow_bmk_opts flow_logic_op flow_fragment_neg flow_fragment_val {
+ | flow_frag_opts flow_logic_op flow_frag_neg flow_frag_val {
      flow_builder_add_val_mask(this_flow, $2, ($3 ? $4 : 0), $4);
+   }
+ | flow_frag_opts ',' flow_frag_neg flow_frag_val {
+     flow_builder_add_val_mask(this_flow, 0x40, ($3 ? $4 : 0), $4); /* AND */
    }
  ;
 
@@ -327,7 +329,8 @@ flow4_item:
      flow_builder4_add_pfx(this_flow, (net_addr_ip4 *) &($2));
    }
  | flow_num_type flow_num_opts
- | flow_bmk_type flow_bmk_opts
+ | flow_tcp_type flow_bmk_opts
+ | flow_frag_type flow_frag_opts
  ;
 
 flow6_item:
@@ -342,7 +345,9 @@ flow6_item:
      flow_builder6_add_pfx(this_flow, (net_addr_ip6 *) &($2), $4);
    }
  | flow_num_type flow_num_opts
- | flow_bmk_type flow_bmk_opts
+ | flow_tcp_type flow_bmk_opts
+ | flow_frag_type flow_frag_opts
+ | flow_label_type flow_bmk_opts
  ;
 
 flow4_opts:

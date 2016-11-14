@@ -112,6 +112,7 @@ enum flow_validated_state {
   FLOW_ST_AND_BIT_SHOULD_BE_UNSET,
   FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED,
   FLOW_ST_DEST_PREFIX_REQUIRED,
+  FLOW_ST_CANNOT_USE_DONT_FRAGMENT
 };
 
 const char *flow_validated_state_str(enum flow_validated_state code);

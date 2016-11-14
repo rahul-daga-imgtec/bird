@@ -197,7 +197,8 @@ static const char* flow_validated_state_str_[] = {
   [FLOW_ST_BAD_TYPE_ORDER] 		= "Bad component order",
   [FLOW_ST_AND_BIT_SHOULD_BE_UNSET] 	= "The AND-bit should be unset",
   [FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED] 	= "The Zero-bit should be unset",
-  [FLOW_ST_DEST_PREFIX_REQUIRED] 	= "Destination prefix is required to define"
+  [FLOW_ST_DEST_PREFIX_REQUIRED] 	= "Destination prefix is required to define",
+  [FLOW_ST_CANNOT_USE_DONT_FRAGMENT]    = "Cannot use Don't fragment flag in IPv6 flow"
 };
 
 const char *
@@ -366,7 +367,7 @@ flow_validate(const byte *nlri, uint len, int ipv6)
 
 	/* Bit-7 must be 0 [draft-ietf-idr-flow-spec-v6] */
 	if (ipv6 && type == FLOW_TYPE_FRAGMENT && (*(pos+1) & 0x01))
-	  return FLOW_ST_ZERO_BIT_SHOULD_BE_UNSED;
+	  return FLOW_ST_CANNOT_USE_DONT_FRAGMENT;
 	/* XXX: Could be Fragment component encoded in 2-bytes? */
 
 	/* Value length of operator */
@@ -817,9 +818,14 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
       {
 	if (!first)
 	{
-	  if (!isset_and(op) &&
+	  if (!isset_and(op) && !is_bitmask(*part) &&
 	      ((num_op(     op) == FLOW_EQ) || (num_op(     op) == FLOW_GTE)) &&
 	      ((num_op(last_op) == FLOW_EQ) || (num_op(last_op) == FLOW_LTE)))
+	  {
+	    b.pos--; /* Remove last char (it is a space) */
+	    buffer_puts(&b, ",");
+	  }
+	  else if (isset_and(op) && *part == FLOW_TYPE_FRAGMENT)
 	  {
 	    b.pos--; /* Remove last char (it is a space) */
 	    buffer_puts(&b, ",");
