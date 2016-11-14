@@ -849,7 +849,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	    buffer_puts(&b, "!");
 
 	  if (*part == FLOW_TYPE_FRAGMENT && (val == 1 || val == 2 || val == 4 || val == 8))
-	    buffer_print(&b, "%s%s", ((*op & 0x1) ? "" : "no "), fragment_val_str(val));
+	    buffer_print(&b, "%s%s", ((*op & 0x1) ? "" : "!"), fragment_val_str(val));
 	  else
 	    buffer_print(&b, "0x%x/0x%x", ((*op & 0x1) ? val : 0), val);
 	}

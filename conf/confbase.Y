@@ -294,7 +294,7 @@ flow_num_opt_ext:
 
 flow_fragment_neg:
    /* empty */ 	{ $$ = 1; }
- | NO		{ $$ = 0; }
+ | '!'		{ $$ = 0; }
  ;
 
 flow_fragment_val:
