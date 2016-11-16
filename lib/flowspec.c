@@ -245,13 +245,16 @@ flow_max_value_length(enum flow_type type, int ipv6)
 }
 
 void
-flow_check_cf_bmk_values(struct flow_builder *fb, u32 val, u32 mask)
+flow_check_cf_bmk_values(struct flow_builder *fb, u8 neg, u32 val, u32 mask)
 {
   flow_check_cf_value_length(fb, val);
   flow_check_cf_value_length(fb, mask);
 
-  if (fb->this_type == FLOW_TYPE_FRAGMENT && fb->ipv6 && (mask & 0x1))
-    cf_error("Invalid mask 0x%x. Bit-7 must be 0 [draft-ietf-idr-flow-spec-v6]", mask);
+  if (neg && !(val == 0 || val == mask))
+    cf_error("For negation, value must be zero or bitmask");
+
+  if (fb->this_type == FLOW_TYPE_FRAGMENT && fb->ipv6 && (mask & 0x01))
+    cf_error("Invalid mask 0x%x. Bit 0 must be 0", mask);
 
   if (val & ~mask)
     cf_error("Value 0x%x outside bitmask 0x%x", val, mask);
@@ -557,12 +560,12 @@ flow_builder_add_val_mask(struct flow_builder *fb, byte op, u32 value, u32 mask)
 
   if (a)
   {
-    flow_builder_add_op_val(fb, op | 0x01, a);
-    op = 0x40;
+    flow_builder_add_op_val(fb, op ^ 0x01, a);
+    op |= 0x40;
   }
 
   if (b)
-    flow_builder_add_op_val(fb, op | 0x02, b);
+    flow_builder_add_op_val(fb, op ^ 0x02, b);
 
   return 1;
 }
