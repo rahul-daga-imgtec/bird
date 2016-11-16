@@ -297,6 +297,9 @@ flow_bmk_opts:
      flow_check_cf_bmk_values(this_flow, $3, $4, $6);
      flow_builder_add_val_mask(this_flow, $2 | $3, $4, $6);
    }
+ | flow_bmk_opts ',' flow_neg expr '/' expr {
+     flow_check_cf_bmk_values(this_flow, $3, $4, $6);
+     flow_builder_add_val_mask(this_flow, 0x40 | $3, $4, $6); /* AND */
    }
  ;
 

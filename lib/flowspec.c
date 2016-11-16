@@ -828,7 +828,7 @@ net_format_flow(char *buf, uint blen, const byte *data, uint dlen, int ipv6)
 	    b.pos--; /* Remove last char (it is a space) */
 	    buffer_puts(&b, ",");
 	  }
-	  else if (isset_and(op) && *part == FLOW_TYPE_FRAGMENT)
+	  else if (isset_and(op) && is_bitmask(*part))
 	  {
 	    b.pos--; /* Remove last char (it is a space) */
 	    buffer_puts(&b, ",");
