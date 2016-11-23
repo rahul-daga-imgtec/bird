@@ -183,7 +183,7 @@ void ospf_update_lsadb(struct ospf_proto *p);
 
 static inline void ospf_flush2_lsa(struct ospf_proto *p, struct top_hash_entry **en)
 { if (*en) { ospf_flush_lsa(p, *en); *en = NULL; } }
-
+void ospf_originate_rt_lsa(struct ospf_proto *p, struct ospf_area *oa);//for ECE573 project
 void ospf_originate_sum_net_lsa(struct ospf_proto *p, struct ospf_area *oa, ort *nf, int metric);
 void ospf_originate_sum_rt_lsa(struct ospf_proto *p, struct ospf_area *oa, ort *nf, int metric, u32 options);
 void ospf_originate_ext_lsa(struct ospf_proto *p, struct ospf_area *oa, ort *nf, u8 mode, u32 metric, u32 ebit, ip_addr fwaddr, u32 tag, int pbit);

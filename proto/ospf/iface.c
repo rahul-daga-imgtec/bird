@@ -9,7 +9,8 @@
  */
 
 #include "ospf.h"
-
+#include"stdio.h"
+#include "topology.h"
 
 const char *ospf_is_names[] = {
   "Down", "Loopback", "Waiting", "PtP", "DROther", "Backup", "DR"
@@ -29,10 +30,62 @@ poll_timer_hook(timer * timer)
   ospf_send_hello(timer->data, OHS_POLL, NULL);
 }
 
+//function for ECE-573
+void measureCongestion()
+{
+ /* If all else fails, use default OSPF cost */
+ //printf("You entered Congestion");
+                  FILE *netdevfp;
+          netdevfp=fopen("/proc/net/dev","r");
+          size_t len=0;
+          char *eachline, *token, *ptr;
+          while (getline(&eachline, &len, netdevfp)!=-1) {
+              if (strchr(eachline,'|')==NULL) {
+                  token=strtok(eachline,":");
+                  while(token[0]==' ') {
+                      token++;
+                  }
+                  
+                      unsigned long valueread;
+                      int index=0;
+                      while((token=strtok(NULL," "))!=NULL) {
+                          valueread=strtoul(token,&ptr,10);
+                          if (index==8) {
+                              //oi->obuf->intfstats->prevtime=(unsigned long)time(NULL);
+                              //oi->obuf->intfstats->prevtxbytes=0;
+                              //oi->obuf->intfstats->txbytes=valueread;
+log(L_WARN "%d: interface tx ",valueread);
+//printf("%d",valueread);
+//printf("       ");
+                          }
+                          index++;
+                      }
+                  
+              }
+          }
+          fclose(netdevfp);
+}  
+
+//function for ECE-573
+inline void sendLSA(timer *timer)
+{
+  struct ospf_iface *ifa = (struct ospf_iface *) timer->data;
+  struct ospf_proto *p = ifa->oa->po;
+
+ospf_originate_rt_lsa(p, ifa->oa);
+
+
+}     
 static void
 hello_timer_hook(timer * timer)
 {
   ospf_send_hello(timer->data, OHS_HELLO, NULL);
+
+//ECE-573: Read interface stats
+measureCongestion();
+sendLSA(timer);
+
+
 }
 
 static void

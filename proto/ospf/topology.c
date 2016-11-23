@@ -287,7 +287,8 @@ ospf_originate_lsa(struct ospf_proto *p, struct ospf_new_lsa *lsa)
 	p->p.name, lsa->nf->fn.prefix, lsa->nf->fn.pxlen);
 
     en = NULL;
-    goto drop;
+   
+   goto drop;
   }
 
   if (en->mode != lsa->mode)
@@ -296,10 +297,11 @@ ospf_originate_lsa(struct ospf_proto *p, struct ospf_new_lsa *lsa)
   if (en->next_lsa_body)
   {
     /* Ignore the new LSA if it is the same as the scheduled one */
-    if ((lsa_blen == en->next_lsa_blen) &&
+  /*  if ((lsa_blen == en->next_lsa_blen) &&
 	!memcmp(lsa_body, en->next_lsa_body, lsa_blen) &&
 	(!ospf_is_v2(p) || (lsa->opts == en->next_lsa_opts)))
-      goto drop;
+   
+   goto drop;*/
 
     /* Free scheduled LSA */
     mb_free(en->next_lsa_body);
@@ -309,11 +311,12 @@ ospf_originate_lsa(struct ospf_proto *p, struct ospf_new_lsa *lsa)
   }
 
   /* Ignore the the new LSA if is the same as the current one */
-  if ((en->lsa.age < LSA_MAXAGE) &&
+ /* if ((en->lsa.age < LSA_MAXAGE) &&
       (lsa_length == en->lsa.length) &&
       !memcmp(lsa_body, en->lsa_body, lsa_blen) &&
       (!ospf_is_v2(p) || (lsa->opts == lsa_get_options(&en->lsa))))
-    goto drop;
+  
+   goto drop;*/
 
   lsa_body = lsab_flush(p);
 
@@ -330,6 +333,7 @@ ospf_originate_lsa(struct ospf_proto *p, struct ospf_new_lsa *lsa)
   return en;
 
  drop:
+
   lsab_reset(p);
   return en;
 }
@@ -870,7 +874,7 @@ prepare_rt3_lsa_body(struct ospf_proto *p, struct ospf_area *oa)
   rt->options = get_rt_options(p, oa, bitv) | (oa->options & LSA_OPTIONS_MASK);
 }
 
-static void
+ void
 ospf_originate_rt_lsa(struct ospf_proto *p, struct ospf_area *oa)
 {
   struct ospf_new_lsa lsa = {
